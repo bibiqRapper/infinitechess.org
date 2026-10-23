@@ -494,6 +494,8 @@ export type TranslationKeys =
 	| 'play.javascript.results.white_koth'
 	| 'play.javascript.results.black_koth'
 	| 'play.javascript.results.bug_generic'
+	| 'play.javascript.results.red_wins'
+	| 'play.javascript.results.blue_wins'
 	| 'play.javascript.editor.expand_sidebar'
 	| 'play.javascript.editor.collapse_sidebar'
 	| 'play.javascript.editor.new_position'
@@ -1173,6 +1175,8 @@ export interface TranslationsObject {
 				white_koth: string;
 				black_koth: string;
 				bug_generic: string;
+				red_wins: string;
+				blue_wins: string;
 			};
 			editor: {
 				expand_sidebar: string;

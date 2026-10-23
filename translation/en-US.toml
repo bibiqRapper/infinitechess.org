@@ -610,6 +610,8 @@ black_allpiecescaptured = "Black wins by all pieces captured!"
 white_koth = "White wins by king of the hill!"
 black_koth = "Black wins by king of the hill!"
 bug_generic = "This is a bug, please report!"
+red_wins = "Red wins!"
+blue_wins = "Blue wins!"
 
 [play.javascript.editor]
 # Sidebar toggle

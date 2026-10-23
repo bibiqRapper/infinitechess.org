@@ -375,7 +375,8 @@ function gameEnd(conclusion?: GameConclusion): void {
                                                      : condition === 'koth' ? resultTranslations.opponent_koth
 													 : resultTranslations.opponent_generic;
 	} else { // Local game, OR spectating an online game
-		if (condition === 'checkmate') element_whosturn.textContent = victor === p.WHITE ? resultTranslations.white_checkmate
+		if (victor === p.RED || victor === p.BLUE) element_whosturn.textContent = victor === p.RED ? resultTranslations.red_wins : resultTranslations.blue_wins;
+		else if (condition === 'checkmate') element_whosturn.textContent = victor === p.WHITE ? resultTranslations.white_checkmate
                                                                     : victor === p.BLACK ? resultTranslations.black_checkmate
 																	: `${resultTranslations.bug_generic} Ending: checkmate`;
 		else if (condition === 'time') element_whosturn.textContent = victor === p.WHITE ? resultTranslations.white_time
