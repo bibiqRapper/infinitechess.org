@@ -152,12 +152,11 @@ function update(basegame: Game): void {
 	const clocks = basegame.clocks!;
 
 	// Update border color
-	if (clocks.colorTicking !== undefined)
-		updateBorderColor(
-			basegame.clocks,
-			element_timers[clocks.colorTicking]!.timer,
-			clocks.currentTime[clocks.colorTicking]!,
-		);
+	// Multiplayer games only have timer elements for white and black
+	const tickingTimer =
+		clocks.colorTicking !== undefined ? element_timers[clocks.colorTicking]?.timer : undefined;
+	if (tickingTimer)
+		updateBorderColor(basegame.clocks, tickingTimer, clocks.currentTime[clocks.colorTicking!]!);
 	updateTextContent(basegame.clocks);
 }
 
