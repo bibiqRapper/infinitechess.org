@@ -12,7 +12,7 @@ import * as z from 'zod';
 
 import timeutil from '../../../../../shared/util/timeutil.js';
 import winconutil from '../../../../../shared/chess/util/winconutil.js';
-import { players as p } from '../../../../../shared/chess/util/typeutil.js';
+import metadatautil from '../../../../../shared/chess/util/metadatautil.js';
 
 // Constants -----------------------------------------------------------------------
 
@@ -77,13 +77,7 @@ function getGameConclusionFromResultAndTermination(
 	result: string,
 	termination: Condition,
 ): GameConclusion {
-	// prettier-ignore
-	const victor =
-		result === '1-0' ? p.WHITE :
-		result === '0-1' ? p.BLACK :
-		result === '1/2-1/2' ? null :
-		result === '*' ? undefined :
-		((): never => { throw Error(`Unsupported result (${result})!`); })();
+	const victor = metadatautil.getVictorFromResult(result);
 
 	const gameConclusion: any = { condition: termination };
 	// Only attach victor if it is defined

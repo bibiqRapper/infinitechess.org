@@ -9,8 +9,6 @@
 import type { Player } from '../../../shared/chess/util/typeutil.js';
 import type { MatchInfo, ServerGame } from './gameutility.js';
 
-import typeutil from '../../../shared/chess/util/typeutil.js';
-
 import gameutility from './gameutility.js';
 
 //--------------------------------------------------------------------------------------------------------
@@ -171,13 +169,7 @@ function cancelDisconnectTimer(
 
 	if (!autoResignTimerWasRunning) return; // Opponent was never notified their opponent was afk, skip telling them their opponent has returned.
 
-	const opponentColor = typeutil.invertPlayer(color);
-	gameutility.sendMessageToSocketOfColor(
-		match,
-		opponentColor,
-		'game',
-		'opponentdisconnectreturn',
-	);
+	gameutility.sendMessageToOpponentsOfColor(match, color, 'game', 'opponentdisconnectreturn');
 }
 
 //--------------------------------------------------------------------------------------------------------

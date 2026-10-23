@@ -50,10 +50,9 @@ function getMovesString(servergame: ServerGame): string {
  */
 function getPlayerEloString(basegame: Game, player: Player): string | null {
 	// The elo is stored in metadata as WhiteElo/BlackElo strings like "1500" or "1200?"
-	// prettier-ignore
-	const eloKey = player === p.WHITE ? 'WhiteElo' :
-				   player === p.BLACK ? 'BlackElo' :
-				   (() => { throw new Error(`Invalid player ${player} when getting elo string`); })();
+	// Multiplayer games are casual, so other players have no elo.
+	const eloKey = player === p.WHITE ? 'WhiteElo' : player === p.BLACK ? 'BlackElo' : undefined;
+	if (eloKey === undefined) return null;
 	return basegame.metadata[eloKey] ?? null;
 }
 

@@ -51,7 +51,10 @@ function setConclusion(basegame: Game, conclusion: GameConclusion | undefined): 
 			basegame.gameRules,
 			conclusion.condition,
 		);
-		basegame.metadata.Result = metadatautil.getResultFromVictor(conclusion.victor);
+		basegame.metadata.Result = metadatautil.getResultFromVictor(
+			conclusion.victor,
+			Math.max(...basegame.gameRules.turnOrder),
+		);
 	} else {
 		delete basegame.metadata.Result;
 		delete basegame.metadata.Termination;

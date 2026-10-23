@@ -1,15 +1,16 @@
 // src/shared/chess/logic/fourplayer.test.ts
 
+import type { FullGame } from './gamefile.js';
+
 import { describe, it, expect } from 'vitest';
 
 import gamefile from './gamefile.js';
 import movepiece from './movepiece.js';
 import boardutil from '../util/boardutil.js';
 import coordutil from '../util/coordutil.js';
+import metadatautil from '../util/metadatautil.js';
 import gamefileutility from '../util/gamefileutility.js';
 import { players as p } from '../util/typeutil.js';
-
-import type { FullGame } from './gamefile.js';
 
 /** Starts a fresh 4 Player game. */
 function newGame(): FullGame {
@@ -88,5 +89,16 @@ describe('4 Player', () => {
 		expect(game.basegame.gameConclusion).toBeUndefined();
 		gamefileutility.eliminatePlayer(game.basegame, p.BLUE, 'resignation');
 		expect(game.basegame.gameConclusion).toEqual({ victor: p.WHITE, condition: 'resignation' });
+		expect(game.basegame.metadata.Result).toBe('1-0-0-0');
+	});
+
+	it('can be won by a side player', () => {
+		const game = newGame();
+		gamefileutility.eliminatePlayer(game.basegame, p.WHITE, 'resignation');
+		gamefileutility.eliminatePlayer(game.basegame, p.BLACK, 'time');
+		gamefileutility.eliminatePlayer(game.basegame, p.BLUE, 'disconnect');
+		expect(game.basegame.gameConclusion).toEqual({ victor: p.RED, condition: 'disconnect' });
+		expect(game.basegame.metadata.Result).toBe('0-0-1-0');
+		expect(metadatautil.getVictorFromResult('0-0-1-0')).toBe(p.RED);
 	});
 });
