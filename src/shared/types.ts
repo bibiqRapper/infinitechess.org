@@ -110,6 +110,14 @@ export const GameUpdateMessageSchema = z.strictObject({
 	gameConclusion: winconutil.gameConclusionSchema.optional(),
 	/** Existing moves, if any, to forward to the front of the game. */
 	moves: z.array(MovePacketSchema),
+	/** Players knocked out of a multiplayer game by resignation, time or disconnection, or royal capture. */
+	eliminations: z.array(
+		z.strictObject({
+			player: z.number(),
+			moveIndex: z.number(),
+			condition: z.enum(['royalcapture', 'resignation', 'time', 'disconnect']),
+		}),
+	),
 	participantState: ParticipantStateSchema,
 	clockValues: ClockValuesSchema.optional(),
 	/**

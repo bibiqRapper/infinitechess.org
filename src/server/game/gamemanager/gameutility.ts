@@ -26,7 +26,6 @@ import type {
 } from '../../../shared/types.js';
 
 import clock from '../../../shared/chess/logic/clock.js';
-import typeutil from '../../../shared/chess/util/typeutil.js';
 import metadatautil from '../../../shared/chess/util/metadatautil.js';
 import { players as p } from '../../../shared/chess/util/typeutil.js';
 import {
@@ -486,6 +485,7 @@ function getGameUpdateMessageContents(
 	const messageContents: GameUpdateMessage = {
 		gameConclusion: servergame.basegame.gameConclusion,
 		moves: servergame.basegame.moves.map((m) => simplifyMove(m)),
+		eliminations: servergame.basegame.eliminations,
 		participantState: getParticipantState(
 			servergame.match,
 			color,
@@ -536,13 +536,18 @@ function getRatingChangeMessageContents(
 }
 
 function getParticipantState(match: MatchInfo, color: Player, whosTurn: Player): ParticipantState {
-	const opponentColor = typeutil.invertPlayer(color);
 	const now = Date.now();
-	const opponentData = match.playerData[opponentColor]!;
+	const opponents = getOpponentsOfColor(match, color);
+	// The opponent whose disconnection we report. In multiplayer games, the first one disconnected.
+	const opponentData =
+		opponents
+			.map((player) => match.playerData[player]!)
+			.find((data) => data.disconnect.timeToAutoLoss !== undefined) ??
+		match.playerData[opponents[0]!]!;
 
 	const participantState: ParticipantState = {
 		drawOffer: {
-			unconfirmed: doesColorHaveExtendedDrawOffer(match, opponentColor), // True if our opponent has extended a draw offer we haven't yet confirmed/denied
+			unconfirmed: opponents.some((player) => doesColorHaveExtendedDrawOffer(match, player)), // True if an opponent has extended a draw offer we haven't yet confirmed/denied
 			lastOfferPly: getLastDrawOfferPlyOfColor(match, color), // The move ply WE HAVE last offered a draw, if we have, otherwise undefined.
 		},
 	};
@@ -607,6 +612,23 @@ function doesPlayerBelongToGame_ReturnColor(
  * @param action - The action the client should perform. If sub is "general" and action is "notify" or "notifyerror", then this needs to be the key of the message in the TOML, and we will auto-translate it!
  * @param value - The value to send to the client.
  */
+/** Returns every other player in the match. */
+function getOpponentsOfColor(match: MatchInfo, color: Player): Player[] {
+	return (Object.keys(match.playerData).map(Number) as Player[]).filter((p) => p !== color);
+}
+
+/** Sends a message to the sockets of every other player in the match. */
+function sendMessageToOpponentsOfColor(
+	match: MatchInfo,
+	color: Player,
+	sub: string,
+	action: string,
+	value?: any,
+): void {
+	for (const opponent of getOpponentsOfColor(match, color))
+		sendMessageToSocketOfColor(match, opponent, sub, action, value);
+}
+
 function sendMessageToSocketOfColor(
 	match: MatchInfo,
 	color: Player,
@@ -830,6 +852,8 @@ export default {
 	resyncToGame,
 	assignWhiteBlackPlayersFromInvite,
 	assignMultiplayerSeatsFromInvite,
+	getOpponentsOfColor,
+	sendMessageToOpponentsOfColor,
 	constructMetadataOfGame,
 	broadcastGameUpdate,
 	sendGameUpdateToColor,

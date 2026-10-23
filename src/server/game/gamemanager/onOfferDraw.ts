@@ -8,8 +8,6 @@
 import type { ServerGame } from './gameutility.js';
 import type { CustomWebSocket } from '../../socket/socketUtility.js';
 
-import typeutil from '../../../shared/chess/util/typeutil.js';
-
 import gameutility from './gameutility.js';
 import liveGameValues from './liveGameValues.js';
 import { setGameConclusion } from './gamemanager.js';
@@ -44,14 +42,16 @@ function offerDraw(ws: CustomWebSocket, servergame: ServerGame): void {
 	if (!gameutility.isGameResignable(basegame))
 		return console.error('Client tried to offer a draw on the first 2 moves');
 
+	if (Object.keys(match.playerData).length > 2)
+		return console.error('Client tried to offer a draw in a multiplayer game');
+
 	// Extend the draw offer!
 
 	openDrawOffer(servergame, color);
 	liveGameValues.onDrawOfferExtended(servergame, color);
 
 	// Alert their opponent
-	const opponentColor = typeutil.invertPlayer(color);
-	gameutility.sendMessageToSocketOfColor(match, opponentColor, 'game', 'drawoffer');
+	gameutility.sendMessageToOpponentsOfColor(match, color, 'game', 'drawoffer');
 }
 
 /**
@@ -83,11 +83,11 @@ function acceptDraw(ws: CustomWebSocket, servergame: ServerGame): void {
  */
 function declineDraw(ws: CustomWebSocket, servergame: ServerGame): void {
 	const color = gameutility.doesSocketBelongToGame_ReturnColor(servergame.match, ws)!;
-	const opponentColor = typeutil.invertPlayer(color);
-
 	// Since this method is run every time a move is submitted, we have to early exit
 	// if their opponent doesn't have an open draw offer.
-	if (!doesColorHaveExtendedDrawOffer(servergame.match, opponentColor)) return;
+	const opponents = gameutility.getOpponentsOfColor(servergame.match, color);
+	if (!opponents.some((opponent) => doesColorHaveExtendedDrawOffer(servergame.match, opponent)))
+		return;
 
 	// console.log('Client declines a draw.');
 
@@ -99,7 +99,7 @@ function declineDraw(ws: CustomWebSocket, servergame: ServerGame): void {
 	closeDrawOffer(servergame.match);
 
 	// Alert their opponent
-	gameutility.sendMessageToSocketOfColor(servergame.match, opponentColor, 'game', 'declinedraw');
+	gameutility.sendMessageToOpponentsOfColor(servergame.match, color, 'game', 'declinedraw');
 	liveGameValues.onDrawOfferDeclined(servergame);
 }
 

@@ -15,8 +15,8 @@ import type { Player, PlayerGroup } from '../../../shared/chess/util/typeutil.js
 import WebSocket from 'ws';
 
 import clock from '../../../shared/chess/logic/clock.js';
-import typeutil from '../../../shared/chess/util/typeutil.js';
 import gamefile from '../../../shared/chess/logic/gamefile.js';
+import moveutil from '../../../shared/chess/util/moveutil.js';
 import winconutil from '../../../shared/chess/util/winconutil.js';
 import gamefileutility from '../../../shared/chess/util/gamefileutility.js';
 import { Leaderboards } from '../../../shared/chess/variants/validleaderboard.js';
@@ -299,8 +299,9 @@ function onRequestRemovalFromPlayersInActiveGames(
 	const color =
 		ws.metadata.subscriptions.game?.color ||
 		gameutility.doesSocketBelongToGame_ReturnColor(servergame.match, ws)!;
-	const opponentColor = typeutil.invertPlayer(color);
-	if (!hasColorInGameSeenConclusion(servergame.match, opponentColor)) return; // They are still in the active games list because they have not seen the game conclusion yet.
+	const opponents = gameutility.getOpponentsOfColor(servergame.match, color);
+	if (opponents.some((opponent) => !hasColorInGameSeenConclusion(servergame.match, opponent)))
+		return; // They are still in the active games list because they have not seen the game conclusion yet.
 
 	// console.log("Deleting game immediately, instead of waiting 15 seconds, because both players have seen the game conclusion and requested to be removed from the players in active games list.")
 
@@ -317,8 +318,7 @@ function onRequestRemovalFromPlayersInActiveGames(
  * @returns The new time (in ms) of the player that just moved after increment is added.
  */
 function pushGameClock({ basegame, match }: ServerGame): number | undefined {
-	basegame.whosTurn =
-		basegame.gameRules.turnOrder[basegame.moves.length % basegame.gameRules.turnOrder.length]!;
+	basegame.whosTurn = moveutil.getWhosTurnAtMoveIndex(basegame, basegame.moves.length - 1);
 
 	if (basegame.untimed) return; // Don't adjust the times if the game isn't timed.
 
@@ -441,13 +441,48 @@ function onPlayerLostOnTime(servergame: ServerGame): void {
 
 	// Who lost on time?
 	const loser = servergame.basegame.whosTurn!;
-	const winner = typeutil.invertPlayer(loser);
 
 	clock.stop(servergame.basegame);
 	// Sometimes their clock can have 1ms left. Just make that zero.
 	if (servergame.basegame.clocks) servergame.basegame.clocks.currentTime[loser] = 0;
 
-	setGameConclusion(servergame, { victor: winner, condition: 'time' });
+	onPlayerEliminated(servergame, loser, 'time');
+}
+
+/**
+ * Called when a player loses by resignation, time, or disconnection.
+ * In 2 player games their opponent wins. In multiplayer games they are eliminated,
+ * and the game continues until only one player is left standing.
+ */
+function onPlayerEliminated(
+	servergame: ServerGame,
+	loser: Player,
+	condition: 'resignation' | 'time' | 'disconnect',
+): void {
+	const { basegame } = servergame;
+	if (gamefileutility.getPlayerCount(basegame) <= 2) {
+		const victor = basegame.gameRules.turnOrder.find((player) => player !== loser)!;
+		return setGameConclusion(servergame, { victor, condition });
+	}
+
+	gamefileutility.eliminatePlayer(basegame, loser, condition);
+	if (basegame.gameConclusion !== undefined) {
+		const conclusion = basegame.gameConclusion;
+		return setGameConclusion(servergame, conclusion);
+	}
+
+	// The game continues. Start the next player's clock if theirs was the one ticking.
+	if (!basegame.untimed && basegame.clocks.colorTicking !== basegame.whosTurn) {
+		clearTimeout(servergame.match.autoTimeLossTimeoutID);
+		basegame.clocks.colorTicking = basegame.whosTurn;
+		basegame.clocks.timeRemainAtTurnStart = basegame.clocks.currentTime[basegame.whosTurn]!;
+		basegame.clocks.timeAtTurnStart = Date.now();
+		servergame.match.autoTimeLossTimeoutID = setTimeout(
+			() => onPlayerLostOnTime(servergame),
+			Math.max(basegame.clocks.timeRemainAtTurnStart, 0),
+		);
+	}
+	gameutility.broadcastGameUpdate(servergame);
 }
 
 /**
@@ -456,7 +491,7 @@ function onPlayerLostOnTime(servergame: ServerGame): void {
  * @param servergame - The game
  * @param colorWon - The color that won by opponent disconnection
  */
-function onPlayerLostByDisconnect(servergame: ServerGame, colorWon: Player): void {
+function onPlayerLostByDisconnect(servergame: ServerGame, loser: Player): void {
 	if (gameutility.isGameOver(servergame.basegame))
 		return console.error(
 			'We should have cancelled the auto-loss-by-disconnection timer when the game ended!',
@@ -464,7 +499,7 @@ function onPlayerLostByDisconnect(servergame: ServerGame, colorWon: Player): voi
 
 	if (gameutility.isGameResignable(servergame.basegame)) {
 		// console.log('Someone has lost by disconnection!');
-		setGameConclusion(servergame, { victor: colorWon, condition: 'disconnect' });
+		onPlayerEliminated(servergame, loser, 'disconnect');
 	} else {
 		// console.log('Game aborted from disconnection.');
 		setGameConclusion(servergame, { condition: 'aborted' });
@@ -479,10 +514,10 @@ function onPlayerLostByDisconnect(servergame: ServerGame, colorWon: Player): voi
  * @param servergame - The game
  * @param colorWon - The color that won by opponent abandonment (AFK)
  */
-function onPlayerLostByAbandonment(servergame: ServerGame, colorWon: Player): void {
+function onPlayerLostByAbandonment(servergame: ServerGame, loser: Player): void {
 	if (gameutility.isGameResignable(servergame.basegame)) {
 		// console.log('Someone has lost by abandonment!');
-		setGameConclusion(servergame, { victor: colorWon, condition: 'disconnect' });
+		onPlayerEliminated(servergame, loser, 'disconnect');
 	} else {
 		// console.log('Game aborted from abandonment.');
 		setGameConclusion(servergame, { condition: 'aborted' });
@@ -624,14 +659,14 @@ function restoreLiveGames(): void {
 
 		// 3. AFK resign timer
 		if (pendingTimers.afkResignTimerMs !== undefined) {
-			const opponentColor = typeutil.invertPlayer(servergame.basegame.whosTurn!);
+			const afkPlayer = servergame.basegame.whosTurn!;
 			if (pendingTimers.afkResignTimerMs <= 0) {
 				// AFK timer already expired during downtime
-				onPlayerLostByAbandonment(servergame, opponentColor);
+				onPlayerLostByAbandonment(servergame, afkPlayer);
 				continue;
 			}
 			servergame.match.autoAFKResignTimeoutID = setTimeout(
-				() => onPlayerLostByAbandonment(servergame, opponentColor),
+				() => onPlayerLostByAbandonment(servergame, afkPlayer),
 				pendingTimers.afkResignTimerMs,
 			);
 		}
@@ -639,21 +674,21 @@ function restoreLiveGames(): void {
 		// 4. Per-player disconnect timers
 		for (const [playerStr, timerState] of Object.entries(pendingTimers.disconnectTimers)) {
 			const player = Number(playerStr) as Player;
-			const opponentColor = typeutil.invertPlayer(player);
 
 			if (timerState.type === 'timer') {
 				// Disconnect auto-resign timer was active
 				if (timerState.remainingMs <= 0) {
 					// Timer already expired, immediately resign
-					onPlayerLostByDisconnect(servergame, opponentColor);
-					break; // Game is over
+					onPlayerLostByDisconnect(servergame, player);
+					if (gameutility.isGameOver(servergame.basegame)) break; // Game is over
+					continue;
 				}
 				// Revive the timer for the remaining duration exactly.
 				// No sockets are connected yet at startup, so skip the opponent notification.
 				const playerdata = servergame.match.playerData[player]!;
 				playerdata.disconnect.startTime = undefined;
 				playerdata.disconnect.timeoutID = setTimeout(
-					() => onPlayerLostByDisconnect(servergame, opponentColor),
+					() => onPlayerLostByDisconnect(servergame, player),
 					timerState.remainingMs,
 				);
 				playerdata.disconnect.timeToAutoLoss = Date.now() + timerState.remainingMs;
@@ -694,6 +729,7 @@ export {
 	isMemberInSomeActiveGame,
 	unsubClientFromGameBySocket,
 	onPlayerLostByAbandonment,
+	onPlayerEliminated,
 	getGameBySocket,
 	onRequestRemovalFromPlayersInActiveGames,
 	setGameConclusion,

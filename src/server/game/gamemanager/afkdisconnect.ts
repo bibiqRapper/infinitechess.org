@@ -43,10 +43,9 @@ const timeBeforeAutoResignByDisconnectMillis_NotByChoice = 60_000; // 60 seconds
 function cancelAutoAFKResignTimer(servergame: ServerGame, alertOpponent: boolean = false): void {
 	if (servergame.match.autoAFKResignTime !== undefined && alertOpponent) {
 		// Alert their opponent
-		const opponentColor = typeutil.invertPlayer(servergame.basegame.whosTurn);
-		gameutility.sendMessageToSocketOfColor(
+		gameutility.sendMessageToOpponentsOfColor(
 			servergame.match,
-			opponentColor,
+			servergame.basegame.whosTurn,
 			'game',
 			'opponentafkreturn',
 		);
@@ -64,13 +63,13 @@ function cancelAutoAFKResignTimer(servergame: ServerGame, alertOpponent: boolean
  * @param servergame - The game
  * @param color - The color to start the auto-resign timer for
  * @param closureNotByChoice - True if the player didn't close the connection on purpose.
- * @param onAutoResignFunc - The function to call when the player should be auto resigned from disconnection. This should have 2 arguments: The game, and the color that won.
+ * @param onAutoResignFunc - The function to call when the player should be auto resigned from disconnection. This should have 2 arguments: The game, and the color that lost.
  */
 function startDisconnectTimer(
 	servergame: ServerGame,
 	color: Player,
 	closureNotByChoice: boolean,
-	onAutoResignFunc: (_game: ServerGame, _winner: Player) => void,
+	onAutoResignFunc: (_game: ServerGame, _loser: Player) => void,
 ): void {
 	// console.log(`Starting disconnect timer to auto resign player ${color}.`);
 
@@ -102,13 +101,11 @@ function startDisconnectTimer(
 	}
 
 	const playerdata = servergame.match.playerData[color]!;
-	const opponentColor = typeutil.invertPlayer(color);
-
 	// Clear the cushion timer state since we're transitioning to the auto-resign timer.
 	playerdata.disconnect.startTime = undefined;
 
 	playerdata.disconnect.timeoutID = setTimeout(
-		() => onAutoResignFunc(servergame, opponentColor),
+		() => onAutoResignFunc(servergame, color),
 		timeBeforeAutoResign,
 	);
 	playerdata.disconnect.timeToAutoLoss = timeToAutoLoss;
@@ -119,9 +116,9 @@ function startDisconnectTimer(
 		millisUntilAutoDisconnectResign: timeBeforeAutoResign,
 		wasByChoice: !closureNotByChoice,
 	};
-	gameutility.sendMessageToSocketOfColor(
+	gameutility.sendMessageToOpponentsOfColor(
 		servergame.match,
-		opponentColor,
+		color,
 		'game',
 		'opponentdisconnect',
 		value,

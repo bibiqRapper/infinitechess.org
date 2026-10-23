@@ -12,7 +12,6 @@ import type { PlayerGroup } from '../util/typeutil.js';
 import type { ClockDependant, Game } from './gamefile.js';
 import type { ClockValues, TimeControl } from '../../types.js';
 
-import typeutil from '../util/typeutil.js';
 import moveutil from '../util/moveutil.js';
 import timeutil from '../../util/timeutil.js';
 import clockutil from '../util/clockutil.js';
@@ -197,7 +196,8 @@ function update(basegame: Game): Player | undefined {
 		const player: Player = Number(playerStr) as Player;
 		if ((time as number) <= 0) {
 			clocks.currentTime[player] = 0;
-			return typeutil.invertPlayer(player); // The color who won on time
+			// The color who won on time. Multiplayer games are concluded by the server.
+			return basegame.gameRules.turnOrder.find((p) => p !== player);
 		}
 	}
 

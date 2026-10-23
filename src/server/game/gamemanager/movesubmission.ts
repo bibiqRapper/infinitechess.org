@@ -15,7 +15,6 @@ import type { CustomWebSocket } from '../../socket/socketUtility.js';
 import * as z from 'zod';
 
 import bimath from '../../../shared/util/math/bimath.js';
-import typeutil from '../../../shared/chess/util/typeutil.js';
 import movepiece from '../../../shared/chess/logic/movepiece.js';
 import winconutil from '../../../shared/chess/util/winconutil.js';
 import gameconfig from '../../../shared/util/gameconfig.js';
@@ -75,7 +74,6 @@ function submitMove(
 
 	// Their subscription info should tell us what game they're in, including the color they are.
 	const color = ws.metadata.subscriptions.game.color;
-	const opponentColor = typeutil.invertPlayer(color);
 
 	// If the game is already over, don't accept it.
 	if (gameutility.isGameOver(servergame.basegame)) return;
@@ -149,8 +147,9 @@ function submitMove(
 		// Just send updated clocks to the move-submitter
 		gameutility.sendUpdatedClockToColor(servergame, color);
 	}
-	// Send their move to their opponent.
-	gameutility.sendMoveToColor(servergame, opponentColor, moveRecord);
+	// Send their move to their opponents.
+	for (const opponent of gameutility.getOpponentsOfColor(servergame.match, color))
+		gameutility.sendMoveToColor(servergame, opponent, moveRecord);
 
 	// Tear down the game after sends. teardownGame skips broadcastGameUpdate for
 	// move-triggered conclusions since clients were already notified individually above.
@@ -313,8 +312,7 @@ function doesGameConclusionCheckOut(
 	const { victor, condition } = gameConclusion;
 	if (!winconutil.isConclusionMoveTriggered(condition)) return false;
 	// We can't submit a move where our opponent wins
-	const oppositeColor = typeutil.invertPlayer(color);
-	return victor !== oppositeColor;
+	return victor === undefined || victor === color;
 }
 
 export { submitMove, submitmoveschem };

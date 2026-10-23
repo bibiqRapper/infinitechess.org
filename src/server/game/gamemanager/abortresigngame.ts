@@ -7,10 +7,8 @@
 import type { ServerGame } from './gameutility.js';
 import type { CustomWebSocket } from '../../socket/socketUtility.js';
 
-import typeutil from '../../../shared/chess/util/typeutil.js';
-
 import gameutility from './gameutility.js';
-import { setGameConclusion } from './gamemanager.js';
+import { setGameConclusion, onPlayerEliminated } from './gamemanager.js';
 
 //--------------------------------------------------------------------------------------------------------
 
@@ -72,8 +70,7 @@ function resignGame(ws: CustomWebSocket, servergame: ServerGame): void {
 	const ourColor =
 		ws.metadata.subscriptions.game?.color ||
 		gameutility.doesSocketBelongToGame_ReturnColor(servergame.match, ws)!;
-	const opponentColor = typeutil.invertPlayer(ourColor);
-	setGameConclusion(servergame, { victor: opponentColor, condition: 'resignation' });
+	onPlayerEliminated(servergame, ourColor, 'resignation');
 }
 
 export { abortGame, resignGame };
