@@ -11,13 +11,16 @@ import type { AuthMemberInfo } from '../../types.js';
 import type { ServerUsernameContainer, TimeControl } from '../../../shared/types.js';
 
 import jsutil from '../../../shared/util/jsutil.js';
+import variant from '../../../shared/chess/variants/variant.js';
 
 // Type Definitions
 
 /** A lobby game invite. */
-interface Invite extends SafeInvite {
+interface Invite extends Omit<SafeInvite, 'joined'> {
 	/** Contains the identifier of the owner of the invite, whether a member or browser. */
 	owner: AuthMemberInfo;
+	/** Players besides the owner that have taken a seat in a multiplayer (more than 2 player) invite. */
+	joiners: { identifier: AuthMemberInfo; usernamecontainer: ServerUsernameContainer }[];
 }
 
 /**
@@ -33,6 +36,8 @@ interface SafeInvite {
 	color: Player | null;
 	rated: 'casual' | 'rated';
 	publicity: 'public' | 'private';
+	/** Players besides the owner that have taken a seat in a multiplayer invite. */
+	joined: ServerUsernameContainer[];
 }
 
 //-------------------------------------------------------------------------------------------
@@ -65,6 +70,7 @@ function makeInviteSafe(invite: Invite): SafeInvite {
 		color: invite.color,
 		rated: invite.rated,
 		publicity: invite.publicity,
+		joined: invite.joiners.map((j) => jsutil.deepCopyObject(j.usernamecontainer)),
 	};
 }
 
@@ -75,6 +81,16 @@ function makeInviteSafe(invite: Invite): SafeInvite {
 function safelyCopyInvite(invite: Invite): SafeInvite {
 	const inviteDeepCopy = jsutil.deepCopyObject(invite);
 	return makeInviteSafe(inviteDeepCopy);
+}
+
+/** Returns the players of the invite's variant, in turn order, without duplicates. */
+function getInvitePlayers(invite: Pick<SafeInvite, 'variant'>): Player[] {
+	return [...new Set(variant.getGameRulesOfVariant(invite.variant, Date.now()).turnOrder)];
+}
+
+/** Returns how many players the invite's game needs to start. */
+function getSeatCount(invite: Pick<SafeInvite, 'variant'>): number {
+	return getInvitePlayers(invite).length;
 }
 
 /** Compares two MemberInfo objects to see if they are the same person or not. */
@@ -91,4 +107,11 @@ function memberInfoEq(u1: AuthMemberInfo, u2: AuthMemberInfo): boolean {
 
 export type { Invite, SafeInvite };
 
-export { isInvitePrivate, isInvitePublic, safelyCopyInvite, memberInfoEq };
+export {
+	isInvitePrivate,
+	isInvitePublic,
+	safelyCopyInvite,
+	memberInfoEq,
+	getInvitePlayers,
+	getSeatCount,
+};

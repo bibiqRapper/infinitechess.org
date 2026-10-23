@@ -5,21 +5,24 @@
  * creating a new game if successful.
  */
 
+import type { Invite } from './inviteutility.js';
 import type { AuthMemberInfo } from '../../types.js';
 import type { CustomWebSocket } from '../../socket/socketUtility.js';
 import type { Player, PlayerGroup } from '../../../shared/chess/util/typeutil.js';
 
 import * as z from 'zod';
 
+import metadatautil from '../../../shared/chess/util/metadatautil.js';
+
 import gameutility from '../gamemanager/gameutility.js';
 import socketUtility from '../../socket/socketUtility.js';
 import { createGame } from '../gamemanager/gamemanager.js';
-import { memberInfoEq } from './inviteutility.js';
 import { getTranslation } from '../../utility/translate.js';
 import { isSocketInAnActiveGame } from '../gamemanager/activeplayers.js';
 import { removeSocketFromInvitesSubs } from './invitessubscribers.js';
 import { sendNotify, sendSocketMessage } from '../../socket/sendSocketMessage.js';
 import { broadcastGameCountToInviteSubs } from '../gamemanager/gamecount.js';
+import { memberInfoEq, getSeatCount, getInvitePlayers } from './inviteutility.js';
 import {
 	getInviteAndIndexByID,
 	deleteInviteByIndex,
@@ -36,6 +39,63 @@ const acceptinviteschem = z.strictObject({
 });
 
 type AcceptInviteMessage = z.infer<typeof acceptinviteschem>;
+
+/**
+ * Takes a seat in a multiplayer invite. Once every seat is taken,
+ * everyone is randomly assigned a color and the game starts.
+ */
+function joinMultiplayerInvite(
+	ws: CustomWebSocket,
+	invite: Invite,
+	index: number,
+	seatCount: number,
+	replyto?: number,
+): void {
+	const user = ws.metadata.memberInfo;
+	if (invite.joiners.some((j) => memberInfoEq(j.identifier, user)))
+		return sendSocketMessage(
+			ws,
+			'general',
+			'printerror',
+			'You already joined this invite!',
+			replyto,
+		);
+
+	deleteUsersExistingInvite(user, { broadCastNewInvites: false });
+	invite.joiners.push({
+		identifier: user,
+		usernamecontainer: {
+			type: user.signedIn ? 'player' : 'guest',
+			username: user.signedIn ? user.username : metadatautil.GUEST_NAME_ICN_METADATA,
+		},
+	});
+
+	if (invite.joiners.length + 1 < seatCount) return onPublicInvitesChange(ws, replyto); // Waiting for more players
+
+	// Every seat is taken. Start the game!
+	deleteInviteByIndex(ws, invite, index, { dontBroadcast: true });
+	const members = [invite.owner, ...invite.joiners.map((j) => j.identifier)];
+	const seats = gameutility.assignMultiplayerSeatsFromInvite(getInvitePlayers(invite), members);
+	const assignments: PlayerGroup<{ identifier: AuthMemberInfo; socket?: CustomWebSocket }> = {};
+	let invite_accepter: Player | undefined;
+	for (const [strcolor, identifier] of Object.entries(seats)) {
+		const player = Number(strcolor) as Player;
+		const isAccepter = memberInfoEq(identifier, user);
+		if (isAccepter) invite_accepter = player;
+		assignments[player] = {
+			identifier,
+			socket: isAccepter ? ws : findSocketFromOwner(identifier),
+		};
+	}
+	if (invite_accepter === undefined)
+		throw Error("Invite accepter doesn't exist on accepted multiplayer invite");
+
+	createGame(invite, assignments, invite_accepter, replyto);
+
+	for (const { socket } of Object.values(assignments))
+		if (socket) removeSocketFromInvitesSubs(socket);
+	onPublicInvitesChange();
+}
 
 /**
  * Attempts to accept an invite of given id.
@@ -85,6 +145,9 @@ function acceptInvite(
 	}
 
 	// Accept the invite!
+
+	const seatCount = getSeatCount(invite);
+	if (seatCount > 2) return joinMultiplayerInvite(ws, invite, index, seatCount, replyto);
 
 	let hadPublicInvite = false;
 	// Delete the invite accepted.

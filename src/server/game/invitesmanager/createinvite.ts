@@ -20,6 +20,7 @@ import {
 } from '../../../shared/chess/variants/validleaderboard.js';
 
 import timecontrol from '../timecontrol.js';
+import { getSeatCount } from './inviteutility.js';
 import { getTranslation } from '../../utility/translate.js';
 import { isSocketInAnActiveGame } from '../gamemanager/activeplayers.js';
 import { getEloOfPlayerInLeaderboard } from '../../database/leaderboardsManager.js';
@@ -47,6 +48,9 @@ const createinviteschem = z
 	.refine(
 		(val) => {
 			// Additional refinements for cross-property validation
+			// Multiplayer invites seat everyone randomly, and are casual.
+			if (getSeatCount(val) > 2 && (val.rated === 'rated' || val.color !== null))
+				return false;
 			if (val.rated === 'rated') {
 				// Rated game validation...
 				if (!(val.variant in VariantLeaderboards)) return false; // Invalid variant for a rated game.
@@ -178,6 +182,7 @@ function getInviteFromWebsocketMessageContents(
 		color: messageContents.color,
 		tag: messageContents.tag,
 		publicity: messageContents.publicity,
+		joiners: [],
 	};
 }
 

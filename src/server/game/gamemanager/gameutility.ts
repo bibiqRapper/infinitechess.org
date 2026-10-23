@@ -219,6 +219,27 @@ function initMatch(
  * - `colorData`: An object mapping player color to player info
  * - `playerColors`: the colors of each player, in order of ascending player number.
  */
+/**
+ * Randomly seats the members of a multiplayer invite at each of the variant's players.
+ * @param players - The players of the variant, in turn order.
+ * @param members - The owner of the invite, followed by everyone that joined it.
+ */
+function assignMultiplayerSeatsFromInvite(
+	players: Player[],
+	members: AuthMemberInfo[],
+): PlayerGroup<AuthMemberInfo> {
+	if (players.length !== members.length)
+		throw Error(`Cannot seat ${members.length} members at ${players.length} players.`);
+	const shuffled = [...members];
+	for (let i = shuffled.length - 1; i > 0; i--) {
+		const j = Math.floor(Math.random() * (i + 1));
+		[shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!];
+	}
+	const colorData: PlayerGroup<AuthMemberInfo> = {};
+	players.forEach((player, i) => (colorData[player] = shuffled[i]!));
+	return colorData;
+}
+
 function assignWhiteBlackPlayersFromInvite(
 	inviteColor: Player | null,
 	player1: AuthMemberInfo,
@@ -808,6 +829,7 @@ export default {
 	unsubClientFromGame,
 	resyncToGame,
 	assignWhiteBlackPlayersFromInvite,
+	assignMultiplayerSeatsFromInvite,
 	constructMetadataOfGame,
 	broadcastGameUpdate,
 	sendGameUpdateToColor,
