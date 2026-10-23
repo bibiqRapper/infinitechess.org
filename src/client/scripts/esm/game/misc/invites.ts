@@ -10,6 +10,7 @@ import type { TimeControl } from '../../../../../shared/types.js';
 import type { Invite, InvitesMessage } from '../websocket/socketschemas.js';
 
 import uuid from '../../../../../shared/util/uuid.js';
+import variant from '../../../../../shared/chess/variants/variant.js';
 import clockutil from '../../../../../shared/chess/util/clockutil.js';
 import { players as p } from '../../../../../shared/chess/util/typeutil.js';
 
@@ -231,7 +232,12 @@ function updateInviteList(list: Invite[]): void {
 		// prettier-ignore
 		const uColor: string = ours ? invite.color === p.WHITE ? translations.invites.you_are_white : invite.color === p.BLACK ? translations.invites.you_are_black : translations.invites.random
                             : invite.color === p.WHITE ? translations.invites.you_are_black : invite.color === p.BLACK ? translations.invites.you_are_white : translations.invites.random;
-		const color = createDiv(['invite-child'], uColor);
+		// Multiplayer invites show how many seats are taken instead.
+		const seats = getSeatCount(invite);
+		const color = createDiv(
+			['invite-child'],
+			seats > 2 ? `${invite.joined.length + 1}/${seats}` : uColor,
+		);
 		newInvite.appendChild(color);
 
 		const rated = createDiv(['invite-child'], translations[invite.rated]);
@@ -316,6 +322,12 @@ function clearIfOnPlayPage(): void {
 }
 
 /** Tests if a virtual invite belongs to us. */
+/** Returns how many players the invite's game needs to start. */
+function getSeatCount(invite: Invite): number {
+	if (!variant.isVariantValid(invite.variant)) return 2;
+	return new Set(variant.getGameRulesOfVariant(invite.variant, Date.now()).turnOrder).size;
+}
+
 function isInviteOurs(invite: Invite): boolean {
 	if (validatorama.areWeLoggedIn()) {
 		return (
@@ -345,6 +357,7 @@ function getInviteFromElement(inviteElement: HTMLElement): Invite {
 	 */
 
 	return {
+		joined: [],
 		usernamecontainer: usernamecontainer.extractPropertiesFromUsernameContainerElement(
 			inviteElement.children[0] as HTMLDivElement,
 		),

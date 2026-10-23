@@ -317,9 +317,9 @@ function updateWhosTurn(): void {
 
 	const color = basegame.whosTurn;
 
-	if (color !== p.WHITE && color !== p.BLACK)
+	if (color !== p.WHITE && color !== p.BLACK && color !== p.RED && color !== p.BLUE)
 		throw Error(
-			`Cannot set the document element text showing whos turn it is when color is neither white nor black! ${color}`,
+			`Cannot set the document element text showing whos turn it is when color is not white, black, red or blue! ${color}`,
 		);
 
 	let textContent = '';
@@ -327,7 +327,11 @@ function updateWhosTurn(): void {
 		const ourTurn = gameloader.isItOurTurn();
 		textContent = ourTurn ? translations.your_move : translations.their_move;
 	} else
-		textContent = color === p.WHITE ? translations.white_to_move : translations.black_to_move;
+		// prettier-ignore
+		textContent = color === p.WHITE ? translations.white_to_move
+					: color === p.BLACK ? translations.black_to_move
+					: color === p.RED ? translations.red_to_move
+					: translations.blue_to_move;
 
 	element_whosturn.textContent = textContent;
 }

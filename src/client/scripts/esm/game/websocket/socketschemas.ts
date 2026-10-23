@@ -50,6 +50,8 @@ const InviteSchema = z.strictObject({
 	publicity: PublicitySchema,
 	/** Whether the game is rated or casual. */
 	rated: z.enum(['casual', 'rated']),
+	/** Players besides the owner that have taken a seat in a multiplayer invite. */
+	joined: z.array(ServerUsernameContainerSchema),
 });
 
 // Game Helper Schemas ---------------------------------------------------------------

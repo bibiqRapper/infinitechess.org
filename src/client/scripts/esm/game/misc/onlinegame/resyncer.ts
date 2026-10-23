@@ -13,6 +13,7 @@
  */
 
 import type { Mesh } from '../../rendering/piecemodels.js';
+import type { Player } from '../../../../../../shared/chess/util/typeutil.js';
 import type { FullGame } from '../../../../../../shared/chess/logic/gamefile.js';
 import type { GameConclusion } from '../../../../../../shared/chess/util/winconutil.js';
 import type { MoveRecord, MoveTagged } from '../../../../../../shared/chess/logic/movepiece.js';
@@ -47,6 +48,20 @@ function handleServerGameUpdate(
 	// This needs to be BEFORE synchronizeMovesList(), otherwise it won't resend our move since it thinks we're not in sync
 	onlinegame.setInSyncTrue();
 
+	// Players eliminated in between moves (resignation, time, disconnect) must be known
+	// before replaying moves, so their armies are turned into gargoyles on the next move.
+	const applyEliminations = (): void => {
+		gamefile.basegame.eliminations = message.eliminations.map((e) => ({
+			...e,
+			player: e.player as Player,
+		}));
+		gamefile.basegame.whosTurn = moveutil.getWhosTurnAtMoveIndex(
+			gamefile.basegame,
+			gamefile.basegame.moves.length - 1,
+		);
+	};
+	applyEliminations();
+
 	/**
 	 * Make sure we are in sync with the final move list.
 	 * We need to do this because sometimes the game can end before the
@@ -60,6 +75,7 @@ function handleServerGameUpdate(
 		message.forceSync,
 	); // { opponentPlayedIllegalMove }
 	if (result.opponentPlayedIllegalMove) return;
+	applyEliminations(); // Rewinding moves may have discarded some
 
 	onlinegame.set_DrawOffers_DisconnectInfo_AutoAFKResign(message.participantState);
 

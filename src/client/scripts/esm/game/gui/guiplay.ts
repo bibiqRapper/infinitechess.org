@@ -5,6 +5,7 @@
  */
 
 import type { TimeControl } from '../../../../../shared/types.js';
+import type { VariantCode } from '../../../../../shared/chess/variants/variantdictionary.js';
 import type { InviteOptions } from '../misc/invites.js';
 
 import variant from '../../../../../shared/chess/variants/variant.js';
@@ -328,10 +329,17 @@ function callback_createInvite(): void {
  */
 function getInviteOptions(): InviteOptions {
 	const strcolor = element_optionColor.value;
-	const color = strcolor === 'White' ? p.WHITE : strcolor === 'Black' ? p.BLACK : null;
 	const selectedVariant = element_optionVariant.value;
 	if (!variant.isVariantValid(selectedVariant))
 		throw Error(`Invite option variant "${selectedVariant}" is not a valid variant.`);
+	// Multiplayer games seat everyone randomly.
+	const color = isVariantMultiplayer(selectedVariant)
+		? null
+		: strcolor === 'White'
+			? p.WHITE
+			: strcolor === 'Black'
+				? p.BLACK
+				: null;
 	return {
 		variant: selectedVariant,
 		clock: element_optionClock.value as TimeControl,
@@ -339,6 +347,11 @@ function getInviteOptions(): InviteOptions {
 		private: element_optionPrivate.value as 'public' | 'private',
 		rated: element_optionRated.value as 'casual' | 'rated',
 	};
+}
+
+/** Whether the variant has more than 2 players. */
+function isVariantMultiplayer(variantCode: VariantCode): boolean {
+	return new Set(variant.getGameRulesOfVariant(variantCode, Date.now()).turnOrder).size > 2;
 }
 
 function getEngineDifficultyConfig(): { strengthLevel: number } {

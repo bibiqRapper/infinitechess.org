@@ -330,6 +330,8 @@ export type TranslationKeys =
 	| 'play.javascript.player_name_black_generic'
 	| 'play.javascript.white_to_move'
 	| 'play.javascript.black_to_move'
+	| 'play.javascript.red_to_move'
+	| 'play.javascript.blue_to_move'
 	| 'play.javascript.your_move'
 	| 'play.javascript.their_move'
 	| 'play.javascript.lost_network'
@@ -994,6 +996,8 @@ export interface TranslationsObject {
 			player_name_black_generic: string;
 			white_to_move: string;
 			black_to_move: string;
+			red_to_move: string;
+			blue_to_move: string;
 			your_move: string;
 			their_move: string;
 			lost_network: string;
