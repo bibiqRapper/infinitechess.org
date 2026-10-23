@@ -913,10 +913,10 @@ function ShortToLong_Format(icn: string): LongFormatOut {
 		const enpassantString = enpassantResults.groups!['enpassant']! as CoordsKey;
 
 		const coords = coordutil.getCoordsFromKey(enpassantString);
-		const lastTurn = turnOrder[turnOrder.length - 1];
-		// prettier-ignore
-		const yParity = lastTurn === p.WHITE ? 1n : lastTurn === p.BLACK ? -1n : (() => { throw new Error(`Invalid last turn (${lastTurn}) when parsing enpassant in ICN!`); })();
-		enpassant = { square: coords, pawn: [coords[0], coords[1] + yParity] };
+		const lastTurn = turnOrder[turnOrder.length - 1]!;
+		// The pawn that double pushed sits one square in front of the enpassant square, from its own perspective.
+		const forward = typeutil.getPawnDirection(lastTurn);
+		enpassant = { square: coords, pawn: [coords[0] + forward[0], coords[1] + forward[1]] };
 
 		lastIndex = enpassantRegex.lastIndex; // Update the ICN index being observed
 	}

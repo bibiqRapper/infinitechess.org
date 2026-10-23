@@ -274,6 +274,7 @@ export type TranslationKeys =
 	| 'play.play-menu.Omega_Squared'
 	| 'play.play-menu.Omega_Cubed'
 	| 'play.play-menu.Omega_Fourth'
+	| 'play.play-menu.Four_Player'
 	| 'play.play-menu.4x4x4x4_Chess'
 	| 'play.play-menu.5D_Chess'
 	| 'play.play-menu.no_clock'
@@ -929,6 +930,7 @@ export interface TranslationsObject {
 			Omega_Squared: string;
 			Omega_Cubed: string;
 			Omega_Fourth: string;
+			Four_Player: string;
 			'4x4x4x4_Chess': string;
 			'5D_Chess': string;
 			no_clock: string;

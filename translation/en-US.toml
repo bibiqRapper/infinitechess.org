@@ -1,7 +1,7 @@
 name = "English" # Name of language
 english_name = "English"
 direction = "ltr" # Change to "rtl" for right to left languages
-version = "99"
+version = "100"
 maintainer = "Naviary"
 
 [header]
@@ -367,6 +367,7 @@ Omega = "Showcase: Omega"
 Omega_Squared = "Showcase: Omega^2"
 Omega_Cubed = "Showcase: Omega^3"
 Omega_Fourth = "Showcase: Omega^4"
+Four_Player = "4 Player"
 4x4x4x4_Chess = "4×4×4×4 Chess"
 5D_Chess = "5D Chess"
 no_clock = "No Clock"

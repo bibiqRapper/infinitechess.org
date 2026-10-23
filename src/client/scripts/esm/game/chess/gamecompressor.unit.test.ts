@@ -34,6 +34,7 @@ describe('gamecompressor', () => {
 					} as any,
 					moves: [],
 					whosTurn: p.WHITE,
+					eliminations: [],
 					untimed: true,
 					clocks: undefined,
 				},

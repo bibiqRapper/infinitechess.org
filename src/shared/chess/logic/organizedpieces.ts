@@ -576,8 +576,11 @@ function getTypeUndefinedsBehavior(
 	promotionsAllowed?: PlayerGroup<RawType[]>,
 ): 0 | 1 | 2 {
 	if (editor) return 2; // gamefile is in the board editor, EVERY piece needs undefined placeholders, and a lot of them!
-	if (!promotionsAllowed) return 0; // No pieces can promote, definitely not appending undefineds to this piece.
 	const [rawType, player] = typeutil.splitType(type);
+	// Gargoyles: a whole army turns neutral at once when a player is eliminated from a multiplayer game.
+	if (player === p.NEUTRAL && rawType !== rawTypes.OBSTACLE && rawType !== rawTypes.VOID)
+		return 2;
+	if (!promotionsAllowed) return 0; // No pieces can promote, definitely not appending undefineds to this piece.
 	if (!promotionsAllowed[player]) return 0; // This player color cannot promote (neutral).
 	if (promotionsAllowed[player].includes(rawType)) return 1; // Can be promoted to
 	return 0; // This piece cannot be promoted to anything.

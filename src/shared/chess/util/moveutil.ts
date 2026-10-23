@@ -104,7 +104,18 @@ function getColorThatPlayedMoveIndex(basegame: Game, index: number): Player {
 	const turnOrder = basegame.gameRules.turnOrder;
 	// If the starting position of the game is in check, then the player very last in the turnOrder is considered the one who *gave* the check.
 	if (index === -1) return turnOrder[turnOrder.length - 1]!;
-	return turnOrder[index % turnOrder.length]!;
+	if (basegame.eliminations.length === 0) return turnOrder[index % turnOrder.length]!;
+
+	// Walk the turn order, skipping the turns of players eliminated before each move.
+	let slot = -1;
+	for (let i = 0; i <= index; i++) {
+		for (let attempt = 0; attempt < turnOrder.length; attempt++) {
+			slot++;
+			const player = turnOrder[slot % turnOrder.length]!;
+			if (!basegame.eliminations.some((e) => e.player === player && e.moveIndex < i)) break;
+		}
+	}
+	return turnOrder[slot % turnOrder.length]!;
 }
 
 /**

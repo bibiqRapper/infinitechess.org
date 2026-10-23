@@ -41,6 +41,14 @@ interface Snapshot {
 	box: BoundingBox;
 }
 
+/** A player that has been knocked out of a multiplayer game, while the remaining players play on. */
+interface Elimination {
+	player: Player;
+	/** The index of the last move played when they were eliminated. -1 if before any move. */
+	moveIndex: number;
+	condition: 'royalcapture' | 'resignation' | 'time' | 'disconnect';
+}
+
 /**
  * Purely game data
  * Used on both sides
@@ -53,6 +61,8 @@ type Game = {
 	moves: MoveRecord[];
 	gameRules: GameRules;
 	whosTurn: Player;
+	/** Players knocked out of a multiplayer game, in the order they were eliminated. Their turns are skipped. */
+	eliminations: Elimination[];
 	gameConclusion?: GameConclusion;
 } & ClockDependant;
 
@@ -153,6 +163,7 @@ function initGame(
 		moves: [],
 		gameRules,
 		whosTurn: gameRules.turnOrder[0]!,
+		eliminations: [],
 		...clockDependantVars,
 	};
 
@@ -331,7 +342,7 @@ function initFullGame(
 	return loadGameWithBoard(basegame, boardsim, additional.moves, validateMoves);
 }
 
-export type { Game, Board, FullGame, Snapshot, ClockDependant, Additional };
+export type { Game, Board, FullGame, Snapshot, ClockDependant, Additional, Elimination };
 
 export default {
 	initGame,

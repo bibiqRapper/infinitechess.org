@@ -7,6 +7,7 @@
  */
 
 import type { Piece } from '../util/boardutil.js';
+import type { Player } from '../util/typeutil.js';
 import type { Coords } from '../util/coordutil.js';
 import type { Change } from './boardchanges.js';
 import type { MoveCoords } from './icn/icnconverter.js';
@@ -22,12 +23,14 @@ import moveutil from '../util/moveutil.js';
 import coordutil from '../util/coordutil.js';
 import boardutil from '../util/boardutil.js';
 import legalmoves from './legalmoves.js';
+import { players } from '../util/typeutil.js';
 import boardchanges from './boardchanges.js';
 import icnconverter from './icn/icnconverter.js';
 import wincondition from './wincondition.js';
 import specialdetect from './specialdetect.js';
 import checkdetection from './checkdetection.js';
 import movevalidation from './movevalidation.js';
+import gamefileutility from '../util/gamefileutility.js';
 import organizedpieces from './organizedpieces.js';
 import { rawTypes as r } from '../util/typeutil.js';
 
@@ -134,6 +137,8 @@ interface MoveFull extends Edit, MoveTagged, MoveRecord {
 		/** Whether the move caused a capture */
 		capture: boolean;
 	};
+	/** Players this move knocked out of a multiplayer game, by capturing their last royal. */
+	eliminates?: Player[];
 	/**
 	 * Any comment made on the move, specified in the ICN.
 	 * These will go back into the ICN when copying the game.
@@ -228,12 +233,64 @@ function generateMove(gamefile: FullGame, moveTagged: MoveTagged): MoveFull {
 	// Must be set before calling queueIncrementMoveRuleStateChange()
 	move.flags.capture = boardchanges.wasACapture(move);
 
+	queueGargoyleConversions(gamefile, move);
+
 	// Delete all special rights that should be revoked from the move.
 	queueSpecialRightDeletionStateChanges(boardsim, move);
 
 	queueIncrementMoveRuleStateChange(gamefile, move);
 
 	return move;
+}
+
+/**
+ * In multiplayer games, queues the changes that turn the armies of eliminated players
+ * into neutral gargoyles: players this move eliminates by capturing their last royal,
+ * and players eliminated in between moves (resignation, time, disconnect).
+ */
+function queueGargoyleConversions(gamefile: FullGame, move: MoveFull): void {
+	const { boardsim, basegame } = gamefile;
+	if (gamefileutility.getPlayerCount(basegame) <= 2) return;
+
+	const victims = new Set<Player>(
+		basegame.eliminations.filter((e) => e.moveIndex < move.generateIndex).map((e) => e.player),
+	);
+
+	const capturedRoyals = new Map<Player, number>();
+	for (const change of move.changes) {
+		if (change.action !== 'capture') continue;
+		const [rawType, player] = typeutil.splitType(change.piece.type);
+		if (player === players.NEUTRAL || !typeutil.royals.includes(rawType)) continue;
+		capturedRoyals.set(player, (capturedRoyals.get(player) ?? 0) + 1);
+	}
+	for (const [player, count] of capturedRoyals) {
+		const royalsLeft = boardutil.getRoyalCoordsOfColor(boardsim.pieces, player).length - count;
+		if (royalsLeft > 0 || victims.has(player)) continue;
+		victims.add(player);
+		(move.eliminates ??= []).push(player);
+	}
+	if (victims.size === 0) return;
+
+	const capturedCoords = new Set(
+		move.changes
+			.filter((change) => change.action === 'capture')
+			.map((change) => coordutil.getKeyFromCoords(change.piece.coords)),
+	);
+	for (const [type] of boardsim.pieces.typeRanges) {
+		const [rawType, player] = typeutil.splitType(type);
+		if (!victims.has(player)) continue;
+		boardutil.iteratePiecesInTypeRange(boardsim.pieces, type, (idx) => {
+			const piece = boardutil.getDefinedPieceFromIdx(boardsim.pieces, idx);
+			if (capturedCoords.has(coordutil.getKeyFromCoords(piece.coords))) return; // Already captured by this move
+			boardchanges.queueDeletePiece(move.changes, false, piece);
+			const gargoyle: Piece = {
+				type: typeutil.buildType(rawType, players.NEUTRAL),
+				coords: piece.coords,
+				index: -1,
+			};
+			boardchanges.queueAddPiece(move.changes, gargoyle);
+		});
+	}
 }
 
 /**
@@ -404,6 +461,16 @@ function makeMove(gamefile: FullGame, move: MoveFull): void {
 
 	applyMove(gamefile, move, true, { global: true }); // Apply the logical boardsim changes.
 
+	const { eliminations } = gamefile.basegame;
+	for (const player of move.eliminates ?? []) {
+		if (eliminations.some((e) => e.player === player)) continue; // Already known (e.g. received from the server)
+		eliminations.push({
+			player,
+			moveIndex: gamefile.basegame.moves.length - 1,
+			condition: 'royalcapture',
+		});
+	}
+
 	// This needs to be after the moveIndex is updated
 	updateTurn(gamefile);
 
@@ -472,9 +539,12 @@ function createCheckState(gamefile: FullGame, move: MoveFull): void {
 		basegame,
 		boardsim.state.local.moveIndex,
 	);
-	const oppositeColor = typeutil.invertPlayer(whosTurnItWasAtMoveIndex)!;
-	// Only track checks if we're using checkmate win condition.
-	const trackChecks = basegame.gameRules.winConditions[oppositeColor]!.includes('checkmate');
+	// Only track checks if an opponent is using the checkmate win condition.
+	const trackChecks = gamefileutility.isOpponentUsingWinCondition(
+		basegame,
+		whosTurnItWasAtMoveIndex,
+		'checkmate',
+	);
 
 	const checkResults = checkdetection.detectCheck(
 		gamefile,
@@ -611,6 +681,12 @@ function rewindMove(gamefile: FullGame): void {
 	// Delete the move off the end of our moves list
 	gamefile.boardsim.moves.pop();
 	gamefile.basegame.moves.pop();
+
+	// Undo any eliminations that happened on or after the rewound move
+	const movesLeft = gamefile.basegame.moves.length;
+	gamefile.basegame.eliminations = gamefile.basegame.eliminations.filter(
+		(e) => e.moveIndex < movesLeft,
+	);
 
 	updateTurn(gamefile);
 }

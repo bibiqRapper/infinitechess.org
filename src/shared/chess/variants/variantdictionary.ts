@@ -95,6 +95,8 @@ export type VariantCode = keyof typeof variantDictionary;
 
 const positionStringOfClassical =
 	'P1,2+|P2,2+|P3,2+|P4,2+|P5,2+|P6,2+|P7,2+|P8,2+|p1,7+|p2,7+|p3,7+|p4,7+|p5,7+|p6,7+|p7,7+|p8,7+|R1,1+|R8,1+|r1,8+|r8,8+|N2,1|N7,1|n2,8|n7,8|B3,1|B6,1|b3,8|b6,8|Q4,1|q4,8|K5,1+|k5,8+';
+const positionStringOfFourPlayer =
+	'R4,1|N5,1|B6,1|Q7,1|K8,1|B9,1|N10,1|R11,1|P4,2+|P5,2+|P6,2+|P7,2+|P8,2+|P9,2+|P10,2+|P11,2+|3r1,4|3n1,5|3b1,6|3q1,7|3k1,8|3b1,9|3n1,10|3r1,11|3p2,4+|3p2,5+|3p2,6+|3p2,7+|3p2,8+|3p2,9+|3p2,10+|3p2,11+|r4,14|n5,14|b6,14|q7,14|k8,14|b9,14|n10,14|r11,14|p4,13+|p5,13+|p6,13+|p7,13+|p8,13+|p9,13+|p10,13+|p11,13+|4r14,4|4n14,5|4b14,6|4q14,7|4k14,8|4b14,9|4n14,10|4r14,11|4p13,4+|4p13,5+|4p13,6+|4p13,7+|4p13,8+|4p13,9+|4p13,10+|4p13,11+';
 const positionStringOfCoaIP =
 	'P-2,1+|P-1,2+|P0,2+|P1,2+|P2,2+|P3,2+|P4,2+|P5,2+|P6,2+|P7,2+|P8,2+|P9,2+|P10,2+|P11,1+|P-4,-6+|P-3,-5+|P-2,-4+|P-1,-5+|P0,-6+|P9,-6+|P10,-5+|P11,-4+|P12,-5+|P13,-6+|p-2,8+|p-1,7+|p0,7+|p1,7+|p2,7+|p3,7+|p4,7+|p5,7+|p6,7+|p7,7+|p8,7+|p9,7+|p10,7+|p11,8+|p-4,15+|p-3,14+|p-2,13+|p-1,14+|p0,15+|p9,15+|p10,14+|p11,13+|p12,14+|p13,15+|HA-2,-6|HA11,-6|ha-2,15|ha11,15|R-1,1|R10,1|r-1,8|r10,8|CH0,1|CH9,1|ch0,8|ch9,8|GU1,1+|GU8,1+|gu1,8+|gu8,8+|N2,1|N7,1|n2,8|n7,8|B3,1|B6,1|b3,8|b6,8|Q4,1|q4,8|K5,1+|k5,8+';
 
@@ -370,6 +372,27 @@ const variantDictionary = buildVariantDictionary({
 		gameruleModifications: {
 			winConditions: royalCaptureWinConditions,
 			...gameruleModificationsOfOmegaShowcasings,
+		},
+	},
+	Four_Player: {
+		name: '4 Player',
+		positionString: positionStringOfFourPlayer,
+		gameruleModifications: {
+			turnOrder: [p.WHITE, p.RED, p.BLACK, p.BLUE],
+			winConditions: {
+				[p.WHITE]: ['royalcapture'],
+				[p.RED]: ['royalcapture'],
+				[p.BLACK]: ['royalcapture'],
+				[p.BLUE]: ['royalcapture'],
+			},
+			// Red and blue pawns move horizontally, so their promotion "ranks" are files.
+			promotionRanks: { [p.WHITE]: [14n], [p.RED]: [14n], [p.BLACK]: [1n], [p.BLUE]: [1n] },
+			promotionsAllowed: {
+				[p.WHITE]: [...defaultPromotions],
+				[p.RED]: [...defaultPromotions],
+				[p.BLACK]: [...defaultPromotions],
+				[p.BLUE]: [...defaultPromotions],
+			},
 		},
 	},
 	// DISABLED BECAUSE IT has a smothered mate in 2 if one side allows it.

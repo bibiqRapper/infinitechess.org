@@ -221,6 +221,21 @@ function invertPlayer(player: Player): Player {
 		((): never => { throw Error(`Cannot invert player ${player}!`); })(); // No downsides to adding this, only more protection.
 }
 
+/**
+ * Returns the direction a player's pawns move forward in.
+ * White starts at the bottom, black at the top, red on the left and blue on the right.
+ */
+function getPawnDirection(player: Player): [bigint, bigint] {
+	// prettier-ignore
+	return player === players.WHITE ? [0n, 1n] :
+		player === players.BLACK ? [0n, -1n] :
+		player === players.RED ? [1n, 0n] :
+		player === players.BLUE ? [-1n, 0n] :
+		player === players.YELLOW ? [0n, 1n] :
+		player === players.GREEN ? [0n, -1n] :
+		((): never => { throw Error(`Player ${player} has no pawn direction!`); })();
+}
+
 function getRawTypeStr(type: RawType): string {
 	return strtypes[type];
 }
@@ -275,6 +290,7 @@ export default {
 	forEachPieceType,
 	getRawTypeStr,
 	invertPlayer,
+	getPawnDirection,
 	getPlayerFromString,
 	debugType,
 	deleteUnusedFromRawTypeGroup,

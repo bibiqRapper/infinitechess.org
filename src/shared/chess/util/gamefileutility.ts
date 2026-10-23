@@ -6,7 +6,7 @@
 
 import type { Coords } from './coordutil.js';
 import type { Player } from './typeutil.js';
-import type { Game, Board, FullGame } from '../logic/gamefile.js';
+import type { Game, Board, FullGame, Elimination } from '../logic/gamefile.js';
 import type { GameruleWinCondition, GameConclusion } from './winconutil.js';
 
 import typeutil from './typeutil.js';
@@ -71,8 +71,35 @@ function isOpponentUsingWinCondition(
 	friendlyColor: Player,
 	winCondition: GameruleWinCondition,
 ): boolean {
-	const oppositeColor = typeutil.invertPlayer(friendlyColor)!;
-	return gamerules.doesColorHaveWinCondition(basegame.gameRules, oppositeColor, winCondition);
+	return basegame.gameRules.turnOrder.some(
+		(player) =>
+			player !== friendlyColor &&
+			gamerules.doesColorHaveWinCondition(basegame.gameRules, player, winCondition),
+	);
+}
+
+/** Returns the players in the turn order that have not been eliminated, in turn order. */
+function getRemainingPlayers(basegame: Game): Player[] {
+	return getUniquePlayersInTurnOrder(basegame.gameRules.turnOrder).filter(
+		(player) => !basegame.eliminations.some((e) => e.player === player),
+	);
+}
+
+/**
+ * Knocks a player out of a multiplayer game in between moves (resignation, time, disconnect).
+ * Their turns are skipped from now on, and their army turns into gargoyles on the next move.
+ * Concludes the game if only one player remains.
+ */
+function eliminatePlayer(
+	basegame: Game,
+	player: Player,
+	condition: Elimination['condition'],
+): void {
+	if (basegame.eliminations.some((e) => e.player === player)) return; // Already eliminated
+	basegame.eliminations.push({ player, moveIndex: basegame.moves.length - 1, condition });
+	basegame.whosTurn = moveutil.getWhosTurnAtMoveIndex(basegame, basegame.moves.length - 1);
+	const remaining = getRemainingPlayers(basegame);
+	if (remaining.length === 1) setConclusion(basegame, { victor: remaining[0]!, condition });
 }
 
 // FUNCTIONS THAT SHOULD BE MOVED ELSEWHERE!!!!! They introduce too many dependancies ----------------------------------!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -111,4 +138,6 @@ export default {
 	doGameOverChecks,
 	getPlayerCount,
 	getUniquePlayersInTurnOrder,
+	getRemainingPlayers,
+	eliminatePlayer,
 };

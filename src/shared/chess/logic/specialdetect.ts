@@ -28,7 +28,7 @@ import legalmoves from './legalmoves.js';
 import checkresolver from './checkresolver.js';
 import gamefileutility from '../util/gamefileutility.js';
 import organizedpieces from './organizedpieces.js';
-import { players as p, rawTypes as r } from '../util/typeutil.js';
+import { rawTypes as r } from '../util/typeutil.js';
 
 // Functions -----------------------------------------------------------------------
 
@@ -182,15 +182,15 @@ function pawns(
 	premove: boolean,
 ): CoordsTagged[] {
 	const { boardsim, basegame } = gamefile;
-	// White and black pawns move and capture in opposite directions.
-	const yOneorNegOne = color === p.WHITE ? 1n : -1n;
+	// Each player's pawns move and capture towards their own forward direction.
+	const forward = typeutil.getPawnDirection(color);
 	const individualMoves: CoordsTagged[] = [];
 	// How do we go about calculating a pawn's legal moves?
 
 	// 1. It can move forward if there is no piece there
 
 	// Is there a piece in front of it?
-	const singlePushCoord: CoordsTagged = [coords[0], coords[1] + yOneorNegOne];
+	const singlePushCoord: CoordsTagged = [coords[0] + forward[0], coords[1] + forward[1]];
 	let moveValidity = legalmoves.testSquareValidity(
 		boardsim,
 		gamefile.basegame.gameRules.worldBorder,
@@ -206,8 +206,8 @@ function pawns(
 
 		// Further... Is the double push legal?
 		const doublePushCoord: CoordsTagged = [
-			singlePushCoord[0],
-			singlePushCoord[1] + yOneorNegOne,
+			singlePushCoord[0] + forward[0],
+			singlePushCoord[1] + forward[1],
 		];
 		moveValidity = legalmoves.testSquareValidity(
 			boardsim,
@@ -232,9 +232,11 @@ function pawns(
 
 	// 2. It can capture diagonally if there are opponent pieces there
 
+	// The capture squares are diagonally forward, one step to each side of the forward direction.
+	const side: Coords = [forward[1], forward[0]];
 	const coordsToCapture: CoordsTagged[] = [
-		[coords[0] - 1n, coords[1] + yOneorNegOne],
-		[coords[0] + 1n, coords[1] + yOneorNegOne],
+		[coords[0] + forward[0] - side[0], coords[1] + forward[1] - side[1]],
+		[coords[0] + forward[0] + side[0], coords[1] + forward[1] + side[1]],
 	];
 	for (const captureCoords of coordsToCapture) {
 		const moveValidity = legalmoves.testSquareValidity(
@@ -266,8 +268,10 @@ function getEnPassantGamefileProperty(
 	moveStartCoords: Coords,
 	moveEndCoords: Coords,
 ): MoveSpecialTags['enpassantCreate'] {
-	const y = (moveStartCoords[1] + moveEndCoords[1]) / 2n;
-	const enpassantSquare: Coords = [moveStartCoords[0], y];
+	const enpassantSquare: Coords = [
+		(moveStartCoords[0] + moveEndCoords[0]) / 2n,
+		(moveStartCoords[1] + moveEndCoords[1]) / 2n,
+	];
 	return { square: enpassantSquare, pawn: coordutil.copyCoords(moveEndCoords) }; // Copy needed to strip endCoords of existing special tags
 }
 
@@ -293,11 +297,14 @@ function addPossibleEnPassant(
 	)!;
 	if (typeutil.getColorFromType(enpassantCapturedPawnType) === color) return; // The captured pawn is not an enemy pawn. THIS IS ONLY EVER NEEDED if we can move opponent pieces on our turn, which is the case in EDIT MODE.
 
-	const xDifference = boardsim.state.global.enpassant.square[0] - coords[0];
-	if (bimath.abs(xDifference) !== 1n) return; // Not immediately left or right of us
-	// prettier-ignore
-	const yParity = color === p.WHITE ? 1n : color === p.BLACK ? -1n : (() => { throw new Error("Invalid color!"); })();
-	if (coords[1] + yParity !== boardsim.state.global.enpassant.square[1]) return; // Not one in front of us
+	const forward = typeutil.getPawnDirection(color);
+	const square = boardsim.state.global.enpassant.square;
+	const forwardDifference =
+		(square[0] - coords[0]) * forward[0] + (square[1] - coords[1]) * forward[1];
+	if (forwardDifference !== 1n) return; // Not one in front of us
+	const sideDifference =
+		(square[0] - coords[0]) * forward[1] + (square[1] - coords[1]) * forward[0];
+	if (bimath.abs(sideDifference) !== 1n) return; // Not immediately to either side of us
 
 	// It is capturable en passant!
 
@@ -324,7 +331,8 @@ function appendPawnMoveAndAttachPromoteTag(
 ): void {
 	if (basegame.gameRules.promotionRanks !== undefined) {
 		const teamPromotionRanks = basegame.gameRules.promotionRanks[color];
-		if (teamPromotionRanks?.includes(landCoords[1])) landCoords.promoteTrigger = true;
+		if (teamPromotionRanks?.includes(getPromotionAxisCoord(color, landCoords)))
+			landCoords.promoteTrigger = true;
 	}
 
 	individualMoves.push(landCoords);
@@ -473,7 +481,16 @@ function isPawnPromotion(basegame: Game, type: number, coordsClicked: Coords): b
 	const color = typeutil.getColorFromType(type);
 	const promotionRanks = basegame.gameRules.promotionRanks[color];
 
-	return promotionRanks?.includes(coordsClicked[1]) || false;
+	return promotionRanks?.includes(getPromotionAxisCoord(color, coordsClicked)) || false;
+}
+
+/**
+ * Returns the coordinate of the square along the axis the player's pawns move,
+ * which is the one compared against their promotion ranks.
+ * Pawns moving vertically promote on ranks (y), pawns moving horizontally promote on files (x).
+ */
+function getPromotionAxisCoord(color: Player, coords: Coords): bigint {
+	return typeutil.getPawnDirection(color)[0] === 0n ? coords[1] : coords[0];
 }
 
 /**

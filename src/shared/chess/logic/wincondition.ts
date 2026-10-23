@@ -57,6 +57,15 @@ function detectRoyalCapture({ boardsim, basegame }: FullGame): GameConclusion | 
 	if (!gamefileutility.isOpponentUsingWinCondition(basegame, basegame.whosTurn, 'royalcapture'))
 		return undefined; // Not using this gamerule
 
+	// Multiplayer: capturing a player's last royal only eliminates them. Last man standing wins.
+	if (gamefileutility.getPlayerCount(basegame) > 2) {
+		const lastMove = moveutil.getLastMove(boardsim.moves);
+		if (lastMove?.eliminates === undefined) return undefined;
+		const remaining = gamefileutility.getRemainingPlayers(basegame);
+		if (remaining.length !== 1) return undefined;
+		return { victor: remaining[0]!, condition: 'royalcapture' };
+	}
+
 	// Was the last move capturing a royal piece?
 	if (wasLastMoveARoyalCapture(boardsim)) {
 		const colorThatWon: Player = moveutil.getColorThatPlayedMoveIndex(
