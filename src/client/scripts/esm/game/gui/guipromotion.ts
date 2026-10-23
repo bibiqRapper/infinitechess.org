@@ -26,6 +26,8 @@ const PromotionGUI: {
 	players: {
 		[p.WHITE]: document.getElementById('promotewhite')!,
 		[p.BLACK]: document.getElementById('promoteblack')!,
+		[p.RED]: document.getElementById('promotered')!,
+		[p.BLUE]: document.getElementById('promoteblue')!,
 	},
 };
 

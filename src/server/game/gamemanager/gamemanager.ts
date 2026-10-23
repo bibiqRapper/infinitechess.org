@@ -482,6 +482,7 @@ function onPlayerEliminated(
 			Math.max(basegame.clocks.timeRemainAtTurnStart, 0),
 		);
 	}
+	liveGameValues.onPlayerEliminated(servergame);
 	gameutility.broadcastGameUpdate(servergame);
 }
 

@@ -27,7 +27,9 @@ import type {
 } from '../../../shared/chess/util/winconutil.js';
 
 import jsutil from '../../../shared/util/jsutil.js';
+import variant from '../../../shared/chess/variants/variant.js';
 import gamefile from '../../../shared/chess/logic/gamefile.js';
+import moveutil from '../../../shared/chess/util/moveutil.js';
 import movepiece from '../../../shared/chess/logic/movepiece.js';
 import icnconverter from '../../../shared/chess/logic/icn/icnconverter.js';
 import metadatautil from '../../../shared/chess/util/metadatautil.js';
@@ -96,9 +98,13 @@ function restoreAllLiveGames(): RestoredGame[] {
 	for (const gameRow of liveGameRows) {
 		try {
 			const playerRows = getLivePlayerGamesForGame(gameRow.game_id);
-			if (playerRows.length !== 2) {
+			const seatCount = new Set(
+				variant.getGameRulesOfVariant(gameRow.variant as VariantCode, gameRow.time_created)
+					.turnOrder,
+			).size;
+			if (playerRows.length !== seatCount) {
 				logEventsAndPrint(
-					`Live game ${gameRow.game_id} has ${playerRows.length} player rows, expected 2. Skipping restoration of this game.`,
+					`Live game ${gameRow.game_id} has ${playerRows.length} player rows, expected ${seatCount}. Skipping restoration of this game.`,
 					'errLog.txt',
 				);
 				deleteLiveGame(gameRow.game_id);
@@ -174,13 +180,12 @@ function restoreSingleGame(
 		for (const move of moves) {
 			basegame.moves.push(jsutil.deepCopyObject(move));
 		}
-
-		// Update whosTurn based on move count
-		basegame.whosTurn =
-			basegame.gameRules.turnOrder[
-				basegame.moves.length % basegame.gameRules.turnOrder.length
-			]!;
 	}
+
+	// Players eliminated from a multiplayer game. Overwrites those found while replaying
+	// moves, because those don't include resignations, time losses or disconnects.
+	basegame.eliminations = JSON.parse(gameRow.eliminations);
+	basegame.whosTurn = moveutil.getWhosTurnAtMoveIndex(basegame, basegame.moves.length - 1);
 
 	// 9. Compute pending timers
 	const pendingTimers = computePendingTimers(gameRow, playerRows, servergame);

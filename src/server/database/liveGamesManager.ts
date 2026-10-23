@@ -37,6 +37,8 @@ export interface LiveGameData {
 	position_pasted: 0 | 1;
 	/** 0 = false, 1 = true */
 	validate_moves: 0 | 1;
+	/** JSON array of the players eliminated from a multiplayer game. */
+	eliminations: string;
 }
 
 // SQL Queries ---------------------------------------------------------------------------------------
@@ -48,8 +50,8 @@ const INSERT_QUERY = `
 		draw_offer_state,
 		conclusion_condition, conclusion_victor, time_ended,
 		afk_resign_time, delete_time,
-		position_pasted, validate_moves
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		position_pasted, validate_moves, eliminations
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `;
 
 const DELETE_QUERY = `DELETE FROM live_games WHERE game_id = ?`;
@@ -82,6 +84,7 @@ function insertLiveGame(record: LiveGamesRecord): void {
 			record.delete_time,
 			record.position_pasted,
 			record.validate_moves,
+			record.eliminations,
 		]);
 	} catch (error: unknown) {
 		const message = error instanceof Error ? error.message : String(error);

@@ -309,9 +309,13 @@ function generateTables(): void {
 			afk_resign_time       INTEGER,
 			delete_time           INTEGER,
 			position_pasted       BOOLEAN NOT NULL DEFAULT 0 CHECK (position_pasted IN (0, 1)),
-			validate_moves        BOOLEAN NOT NULL DEFAULT 1 CHECK (validate_moves IN (0, 1))
+			validate_moves        BOOLEAN NOT NULL DEFAULT 1 CHECK (validate_moves IN (0, 1)),
+			eliminations          TEXT NOT NULL DEFAULT '[]'
 		);
 	`);
+	// Added for multiplayer games, after the table already existed in production.
+	if (!db.columnExists('live_games', 'eliminations'))
+		db.run(`ALTER TABLE live_games ADD COLUMN eliminations TEXT NOT NULL DEFAULT '[]'`);
 
 	// Live Player Games table — per-player state for active games
 	db.run(`

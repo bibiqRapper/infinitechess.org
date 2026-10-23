@@ -133,6 +133,7 @@ function onGameCreated(servergame: ServerGame): void {
 		delete_time: null,
 		position_pasted: 0,
 		validate_moves: servergame.boardsim !== undefined ? 1 : 0,
+		eliminations: '[]',
 	};
 
 	insertLiveGame(record);
@@ -154,6 +155,7 @@ function onMoveSubmitted(servergame: ServerGame): void {
 
 	const gameUpdates: Partial<LiveGameData> = {
 		moves: getMovesString(servergame),
+		eliminations: JSON.stringify(basegame.eliminations),
 	};
 
 	if (!basegame.untimed) {
@@ -193,6 +195,23 @@ function onGameConcluded(servergame: ServerGame): void {
 	updateLiveGame(match.id, gameUpdates);
 
 	// Update time_remaining_ms for timed games (e.g., time loss sets loser to 0)
+	persistCurrentClockTimes(servergame);
+}
+
+/**
+ * Called when a player is eliminated from a multiplayer game between moves
+ * (resignation, time, disconnect), and the game continues.
+ */
+function onPlayerEliminated(servergame: ServerGame): void {
+	const { basegame, match } = servergame;
+	const gameUpdates: Partial<LiveGameData> = {
+		eliminations: JSON.stringify(basegame.eliminations),
+	};
+	if (!basegame.untimed) {
+		gameUpdates.color_ticking = basegame.clocks.colorTicking ?? null;
+		gameUpdates.clock_snapshot_time = basegame.clocks.timeAtTurnStart ?? null;
+	}
+	updateLiveGame(match.id, gameUpdates);
 	persistCurrentClockTimes(servergame);
 }
 
@@ -276,6 +295,7 @@ function onGameDeleted(game_id: number): void {
 // Exports --------------------------------------------------------------------------------------------
 
 export default {
+	onPlayerEliminated,
 	// Persistence Events
 	onGameCreated,
 	onMoveSubmitted,
