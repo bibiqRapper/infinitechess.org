@@ -51,6 +51,8 @@ let ourColor: Player | undefined;
  * If the variant doesn't have a leaderboard, we fall back to the INFINITY leaderboard.
  */
 let playerRatings: PlayerGroup<Rating> | undefined;
+/** The display name of each player, or the guest name for unauthenticated players. */
+let playerUsernames: PlayerGroup<string> | undefined;
 
 /**
  * Different from gamefile.basegame.gameConclusion, because this is only true if {@link gamefileutility.concludeGame}
@@ -131,6 +133,11 @@ function getPlayerRatings(): PlayerGroup<Rating> | undefined {
 	return playerRatings;
 }
 
+function getPlayerUsernames(): PlayerGroup<string> | undefined {
+	if (!inOnlineGame) throw Error("Cannot get player usernames when we're not in an online game.");
+	return playerUsernames;
+}
+
 function areWeColorInOnlineGame(color: Player): boolean {
 	if (!inOnlineGame) return false; // Can't be that color, because we aren't even in a game.
 	return ourColor === color;
@@ -195,6 +202,7 @@ function initOnlineGame(options: {
 	rated = options.gameInfo.rated;
 	isPrivate = options.gameInfo.publicity === 'private';
 	playerRatings = options.gameInfo.playerRatings;
+	playerUsernames = options.gameInfo.playerUsernames;
 
 	ourColor = options.youAreColor;
 
@@ -437,6 +445,7 @@ export default {
 	doWeHaveRole,
 	getOurColor,
 	getPlayerRatings,
+	getPlayerUsernames,
 	setInSyncTrue,
 	initOnlineGame,
 	set_DrawOffers_DisconnectInfo_AutoAFKResign,

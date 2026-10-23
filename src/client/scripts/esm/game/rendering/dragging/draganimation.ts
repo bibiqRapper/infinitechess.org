@@ -260,8 +260,8 @@ function renderPieceModel(): void {
 	const perspectiveEnabled = perspective.getEnabled();
 	const touchscreenUsed = listener_overlay.isPointerTouch(pointerId!);
 	const boardScale = boardpos.getBoardScaleAsNumber();
-	const rotation = perspective.getIsViewingBlackPerspective() ? -1 : 1;
-	const { texleft, texbottom, texright, textop } = meshes.getPieceTexCoords();
+	/** The world-space direction of the top of the screen. */
+	const screenUp = perspective.rotateScreenToWorld([0, 1]);
 
 	// In perspective the piece is rendered above the surface of the board.
 	const height = perspectiveEnabled ? perspectiveConfigs.z * boardScale : z;
@@ -279,17 +279,20 @@ function renderPieceModel(): void {
 	}
 
 	const halfSize = size / 2;
-	const left = worldLocation![0] - halfSize;
-	const bottom =
-		worldLocation![1] - halfSize + (touchscreenUsed ? touchscreenOffset * rotation : 0);
-	const right = worldLocation![0] + halfSize;
-	const top = worldLocation![1] + halfSize + (touchscreenUsed ? touchscreenOffset * rotation : 0);
+	const offset = touchscreenUsed ? touchscreenOffset : 0;
+	const centerX = worldLocation![0] + offset * screenUp[0];
+	const centerY = worldLocation![1] + offset * screenUp[1];
+	const left = centerX - halfSize;
+	const bottom = centerY - halfSize;
+	const right = centerX + halfSize;
+	const top = centerY + halfSize;
 
 	const data: number[] = [];
 	// prettier-ignore
-	if (perspectiveEnabled) data.push(...primitives.Quad_ColorTexture3D(left, bottom, right, top, z, texleft, texbottom, texright, textop, ...perspectiveConfigs.shadowColor)); // Shadow
+	if (perspectiveEnabled) data.push(...primitives.Quad_ColorTexture3D(left, bottom, right, top, z, 0, 0, 1, 1, ...perspectiveConfigs.shadowColor)); // Shadow
 	// prettier-ignore
-	data.push(...primitives.Quad_ColorTexture3D(left, bottom, right, top, height, texleft, texbottom, texright, textop, 1, 1, 1, 1)); // Piece
+	data.push(...primitives.Quad_ColorTexture3D(left, bottom, right, top, height, 0, 0, 1, 1, 1, 1, 1, 1)); // Piece
+	meshes.orientTexturedQuads(data, 9);
 	createRenderable(
 		data,
 		3,

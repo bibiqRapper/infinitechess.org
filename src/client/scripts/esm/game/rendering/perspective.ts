@@ -6,6 +6,10 @@
  */
 
 import type { Color } from '../../../../../shared/util/math/math.js';
+import type { Player } from '../../../../../shared/chess/util/typeutil.js';
+import type { DoubleCoords } from '../../../../../shared/chess/util/coordutil.js';
+
+import typeutil, { players as p } from '../../../../../shared/chess/util/typeutil.js';
 
 import mat4 from './gl-matrix.js';
 import toast from '../gui/toast.js';
@@ -29,7 +33,8 @@ let rotX = 0; // Positive x looks down. Min 0
 let rotZ = 0; // Positive z looks right
 // rotY = 0, // Y is tilt, we will not be using this
 
-let isViewingBlackPerspective = false;
+/** How many 90° counter-clockwise turns the view is rotated, rounded to the nearest quarter turn. 0-3. */
+let viewQuarterTurns = 0;
 
 const mouseSensitivityMultiplier = 0.13; // 0.13 Default   This is Multiplied by our perspective_sensitivity in the preferences.
 
@@ -52,8 +57,26 @@ function getRotX(): number {
 function getRotZ(): number {
 	return rotZ;
 }
-function getIsViewingBlackPerspective(): boolean {
-	return isViewingBlackPerspective;
+/** Returns how many 90° turns the view is rotated, rounded to the nearest quarter turn. 0 is white's perspective, 2 is black's. */
+function getViewQuarterTurns(): number {
+	return viewQuarterTurns;
+}
+
+/** Rotates a vector by the given number of 90° counter-clockwise quarter turns. Exact for any magnitude. */
+function rotateByQuarterTurns(vec: DoubleCoords, turns: number): DoubleCoords {
+	const t = ((turns % 4) + 4) % 4;
+	const [x, y] = vec;
+	return t === 0 ? [x, y] : t === 1 ? [-y, x] : t === 2 ? [-x, -y] : [y, -x];
+}
+
+/** Converts a vector in screen space (x right, y up) into world space, according to the 2D view rotation. */
+function rotateScreenToWorld(vec: DoubleCoords): DoubleCoords {
+	return rotateByQuarterTurns(vec, -viewQuarterTurns);
+}
+
+/** Converts a vector in world space into screen space (x right, y up), according to the 2D view rotation. */
+function rotateWorldToScreen(vec: DoubleCoords): DoubleCoords {
+	return rotateByQuarterTurns(vec, viewQuarterTurns);
 }
 
 function toggle(): void {
@@ -90,18 +113,22 @@ function disable(): void {
 
 	guipause.getelement_perspective().textContent = `${translations.rendering.perspective}: ${translations.rendering.off}`;
 
-	const viewWhitePerspective = gameslot.areInGame()
-		? gameslot.isLoadedGameViewingWhitePerspective()
-		: true;
-	resetRotations(viewWhitePerspective);
+	resetRotations(gameslot.areInGame() ? gameslot.getPerspectivePlayer() : p.WHITE);
 }
 
-// Sets rotations to orthographic view. Sensitive to if we're white or black.
-function resetRotations(viewWhitePerspective = true): void {
-	rotX = 0;
-	rotZ = viewWhitePerspective ? 0 : 180;
+/** Returns the view rotation, in degrees, that places the player's army at the bottom of the screen, with their pawns moving up. */
+function getRotZOfPlayer(player: Player): number {
+	const [dx, dy] = typeutil.getPawnDirection(player);
+	const degrees = 90 - (Math.atan2(Number(dy), Number(dx)) * 180) / Math.PI;
+	return ((Math.round(degrees) % 360) + 360) % 360;
+}
 
-	updateIsViewingBlackPerspective();
+// Sets rotations to orthographic view, from the perspective of the provided player.
+function resetRotations(player: Player = p.WHITE): void {
+	rotX = 0;
+	rotZ = getRotZOfPlayer(player);
+
+	updateViewQuarterTurns();
 
 	camera.onPositionChange();
 }
@@ -146,7 +173,7 @@ function update(): void {
 	rotX += mouseChange[1] * thisSensitivity;
 	rotZ += mouseChange[0] * thisSensitivity;
 	capRotations();
-	updateIsViewingBlackPerspective();
+	updateViewQuarterTurns();
 
 	camera.onPositionChange(); // Calculate new viewMatrix
 }
@@ -256,8 +283,8 @@ function unlockMouse(): void {
 	document.exitPointerLock();
 }
 
-function updateIsViewingBlackPerspective(): void {
-	isViewingBlackPerspective = rotZ > 90 && rotZ < 270;
+function updateViewQuarterTurns(): void {
+	viewQuarterTurns = Math.round(rotZ / 90) % 4;
 }
 
 // Exports -----------------------------------------------------------------------
@@ -267,7 +294,10 @@ export default {
 	getRotX,
 	getRotZ,
 	distToRenderBoard,
-	getIsViewingBlackPerspective,
+	getViewQuarterTurns,
+	rotateByQuarterTurns,
+	rotateScreenToWorld,
+	rotateWorldToScreen,
 	toggle,
 	disable,
 	resetRotations,

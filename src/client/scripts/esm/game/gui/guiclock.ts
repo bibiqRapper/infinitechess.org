@@ -14,14 +14,22 @@ import gamesound from '../misc/gamesound.js';
 import gameloader from '../chess/gameloader.js';
 import { GameBus } from '../GameBus.js';
 
-const element_timers: PlayerGroup<{ timer: HTMLElement }> = {
-	[p.WHITE]: {
-		timer: document.getElementById('timer-white')!,
-	},
-	[p.BLACK]: {
-		timer: document.getElementById('timer-black')!,
-	},
-};
+const element_timerLeft = document.getElementById('timer-white')!;
+const element_timerRight = document.getElementById('timer-black')!;
+
+/** The players whose timers are displayed in the left and right slots of the game info bar. */
+let barPlayers: [Player, Player] = [p.WHITE, p.BLACK];
+
+/** Sets the players whose timers are displayed in the left and right slots of the game info bar. */
+function setBarPlayers(players: [Player, Player]): void {
+	barPlayers = players;
+}
+
+/** Returns the timer elements of the players currently displayed in the left and right slots of the game info bar. */
+function getTimerElements(): PlayerGroup<{ timer: HTMLElement }> {
+	const [left, right] = barPlayers;
+	return { [left]: { timer: element_timerLeft }, [right]: { timer: element_timerRight } };
+}
 
 /** All variables related to the lowtime tick notification at 1 minute remaining. */
 const lowtimeNotif: {
@@ -96,13 +104,13 @@ GameBus.addEventListener('game-unloaded', () => {
 // Functions -----------------------------------------------------------------------
 
 function hideClocks(): void {
-	for (const clockElements of Object.values(element_timers)) {
+	for (const clockElements of Object.values(getTimerElements())) {
 		clockElements.timer.classList.add('hidden');
 	}
 }
 
 function showClocks(): void {
-	for (const clockElements of Object.values(element_timers)) {
+	for (const clockElements of Object.values(getTimerElements())) {
 		clockElements.timer.classList.remove('hidden');
 	}
 }
@@ -114,7 +122,7 @@ function stopClocks(basegame?: Game): void {
 	cancelSoundEffectTimers();
 
 	if (basegame && !basegame.untimed) updateTextContent(basegame.clocks); // Do this one last time so that when we lose on time, the clock doesn't freeze at one second remaining.
-	for (const clockElements of Object.values(element_timers)) {
+	for (const clockElements of Object.values(getTimerElements())) {
 		removeBorder(clockElements.timer);
 	}
 }
@@ -152,9 +160,11 @@ function update(basegame: Game): void {
 	const clocks = basegame.clocks!;
 
 	// Update border color
-	// Multiplayer games only have timer elements for white and black
+	// In games with more than 2 players, only the players displayed in the bar have timer elements
 	const tickingTimer =
-		clocks.colorTicking !== undefined ? element_timers[clocks.colorTicking]?.timer : undefined;
+		clocks.colorTicking !== undefined
+			? getTimerElements()[clocks.colorTicking]?.timer
+			: undefined;
 	if (tickingTimer)
 		updateBorderColor(basegame.clocks, tickingTimer, clocks.currentTime[clocks.colorTicking!]!);
 	updateTextContent(basegame.clocks);
@@ -165,7 +175,7 @@ function edit(basegame: Game): void {
 	updateTextContent(basegame.clocks);
 
 	// Remove colored border
-	for (const [playerStr, clockElements] of Object.entries(element_timers)) {
+	for (const [playerStr, clockElements] of Object.entries(getTimerElements())) {
 		const player = Number(playerStr) as Player;
 		if (player === basegame.clocks.colorTicking) continue;
 		removeBorder(clockElements.timer);
@@ -234,7 +244,7 @@ function updateBorderColor(
  * Updates the clocks' text content in the document.
  */
 function updateTextContent(clocks: ClockData): void {
-	for (const [playerStr, clockElements] of Object.entries(element_timers)) {
+	for (const [playerStr, clockElements] of Object.entries(getTimerElements())) {
 		const player = Number(playerStr) as Player;
 		const text = clockutil.getTextContentFromTimeRemain(clocks.currentTime[player]!);
 		clockElements.timer.textContent = text;
@@ -277,7 +287,7 @@ function push(clocks: ClockData): void {
 	rescheduleSoundEffects(clocks);
 
 	// Remove colored border
-	for (const [color, clockElements] of Object.entries(element_timers)) {
+	for (const [color, clockElements] of Object.entries(getTimerElements())) {
 		const player = Number(color) as Player;
 		if (player === clocks.colorTicking) continue;
 		removeBorder(clockElements.timer);
@@ -369,4 +379,5 @@ export default {
 	push,
 	update,
 	rescheduleSoundEffects,
+	setBarPlayers,
 };

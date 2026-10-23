@@ -72,12 +72,9 @@ export function render(): void {
 	const right = worldHalfWidth;
 	const bottom = -worldHalfWidth;
 	const top = worldHalfWidth;
-	// Texture data of the single quad instance
-	const { texleft, texbottom, texright, textop } = meshes.getPieceTexCoords();
-
 	// Initialize the data arrays...
 
-	const vertexData_Pictures: number[] = primitives.Quad_Texture(left, bottom, right, top, texleft, texbottom, texright, textop); // prettier-ignore
+	const vertexData_Pictures: number[] = meshes.orientTexturedQuads(primitives.Quad_Texture(left, bottom, right, top, 0, 0, 1, 1), 4); // prettier-ignore
 	/** Maps each piece type to its list of instance data (position + color per instance). */
 	const instanceDataByType = new Map<number, number[]>();
 

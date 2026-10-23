@@ -420,10 +420,7 @@ function renderAnimations(): void {
 
 	const boardPos = boardpos.getBoardPos();
 
-	/** Whether the textures should be inverted or not, based on whether we're viewing black's perspective. */
-	const inverted = perspective.getIsViewingBlackPerspective();
-
-	const vertexData = instancedshapes.getDataTexture(inverted);
+	const vertexData = instancedshapes.getDataTexture(perspective.getViewQuarterTurns());
 
 	// We need two separate data groups to control render order.
 	// 1. Captured pieces (which should be rendered underneath)

@@ -238,7 +238,7 @@ function getBoundingBoxOfBoard(
 	scale: BigDecimal = boardpos.getBoardScale(),
 	debugMode?: boolean,
 ): BoundingBoxBD {
-	const screenBoundingBox = camera.getScreenBoundingBox(debugMode);
+	const screenBoundingBox = camera.rotateScreenBoxToWorld(camera.getScreenBoundingBox(debugMode));
 
 	function getAxisEdges(position: BigDecimal, screenEnd: number): [BigDecimal, BigDecimal] {
 		const screenEndBD = bd.fromNumber(screenEnd);

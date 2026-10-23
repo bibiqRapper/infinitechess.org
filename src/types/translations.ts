@@ -328,6 +328,8 @@ export type TranslationKeys =
 	| 'play.javascript.engine_indicator'
 	| 'play.javascript.player_name_white_generic'
 	| 'play.javascript.player_name_black_generic'
+	| 'play.javascript.player_name_red_generic'
+	| 'play.javascript.player_name_blue_generic'
 	| 'play.javascript.white_to_move'
 	| 'play.javascript.black_to_move'
 	| 'play.javascript.red_to_move'
@@ -996,6 +998,8 @@ export interface TranslationsObject {
 			engine_indicator: string;
 			player_name_white_generic: string;
 			player_name_black_generic: string;
+			player_name_red_generic: string;
+			player_name_blue_generic: string;
 			white_to_move: string;
 			black_to_move: string;
 			red_to_move: string;

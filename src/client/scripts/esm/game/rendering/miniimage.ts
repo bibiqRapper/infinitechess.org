@@ -353,7 +353,7 @@ function render(): void {
 	if (!boardpos.areZoomedOut()) return;
 
 	const boardsim = gameslot.getGamefile()!.boardsim;
-	const inverted = perspective.getIsViewingBlackPerspective();
+	const quarterTurns = perspective.getViewQuarterTurns();
 
 	const { instanceData, instanceData_hovered } = getImageInstanceData();
 
@@ -365,7 +365,7 @@ function render(): void {
 		if (thisInstanceData.length === 0) continue; // No pieces of this type visible
 
 		const color = [1, 1, 1, MINI_IMAGE_OPACITY] as Color;
-		const vertexData: number[] = instancedshapes.getDataColoredTexture(color, inverted);
+		const vertexData: number[] = instancedshapes.getDataColoredTexture(color, quarterTurns);
 
 		const type = Number(typeStr);
 		const texture: WebGLTexture = texturecache.getTexture(type);
@@ -382,7 +382,7 @@ function render(): void {
 			const color_hovered = [1, 1, 1, 1] as Color; // Hovered mini images are fully opaque
 			const vertexData_hovered: number[] = instancedshapes.getDataColoredTexture(
 				color_hovered,
-				inverted,
+				quarterTurns,
 			);
 			models_hovered[type] = createRenderable_Instanced_GivenInfo(
 				vertexData_hovered,

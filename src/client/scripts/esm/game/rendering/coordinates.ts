@@ -146,6 +146,12 @@ function render(): void {
 
 	if (tileBox.left > tileBox.right || tileBox.bottom > tileBox.top) return;
 
+	/** Whether the files run along the bottom of the screen. False when the view is rotated a quarter turn, then the ranks do. */
+	const filesAlongBottom = perspective.getViewQuarterTurns() % 2 === 0;
+	const [bottomMin, bottomMax] = filesAlongBottom
+		? [tileBox.left, tileBox.right]
+		: [tileBox.bottom, tileBox.top];
+
 	// The step is driven by the widest visible file label (width-based overlap).
 	// File labels overlap sooner than rank labels because characters are wider than
 	// they are tall, so a step sufficient for files is automatically sufficient for ranks.
@@ -158,13 +164,13 @@ function render(): void {
 	// Only needed when at least one endpoint is abbreviated (outside the non-abbreviated zone)
 	// but the range still spans into it, meaning interior labels will be wider than the endpoints.
 	const hasUnabbrevInRange =
-		(tileBox.left < unabbrevMin || tileBox.right > unabbrevMax) &&
-		tileBox.left <= unabbrevMax &&
-		tileBox.right >= unabbrevMin;
+		(bottomMin < unabbrevMin || bottomMax > unabbrevMax) &&
+		bottomMin <= unabbrevMax &&
+		bottomMax >= unabbrevMin;
 
 	const widestFileLabelWidth = Math.max(
-		textrenderer.getTextWidth(formatCoord(tileBox.left), sizeWorld),
-		textrenderer.getTextWidth(formatCoord(tileBox.right), sizeWorld),
+		textrenderer.getTextWidth(formatCoord(bottomMin), sizeWorld),
+		textrenderer.getTextWidth(formatCoord(bottomMax), sizeWorld),
 		hasUnabbrevInRange
 			? textrenderer.getTextWidth('9'.repeat(MAX_FULL_DISPLAY_LENGTH), sizeWorld)
 			: 0,
@@ -178,11 +184,10 @@ function render(): void {
 		space.convertPixelsToWorldSpace_Virtual(LABEL_ARROW_PADDING_PX);
 	const arrowLocations = arrows.getAllArrowWorldLocations();
 
-	const isBlackPerspective = perspective.getIsViewingBlackPerspective();
-	// Arrow hitbox locations in black's perspective need to be negated so overlap detection remains accurate.
-	const effectiveArrowLocations: DoubleCoords[] = isBlackPerspective
-		? arrowLocations.map((loc) => [-loc[0], -loc[1]])
-		: arrowLocations;
+	// Arrow hitbox locations need to be rotated into screen space so overlap detection remains accurate.
+	const effectiveArrowLocations: DoubleCoords[] = arrowLocations.map((loc) =>
+		perspective.rotateWorldToScreen(loc),
+	);
 
 	// X-axis: file labels centered on each file column, fixed at the bottom of the screen.
 	// Shifted down by ATLAS_DESCENDER_FRACTION so the invisible descender space goes below
@@ -203,19 +208,22 @@ function render(): void {
 	const firstRank = ceilToMultiple(tileBox.bottom, stepBig);
 
 	// Render without any rotation so glyphs always appear upright.
-	// In black's perspective the view matrix carries a 180° Z-rotation that would otherwise flip the text.
+	// In rotated perspectives the view matrix carries a Z-rotation that would otherwise rotate the text.
 	perspective.renderWithoutPerspectiveRotations(() => {
-		for (let file = firstFile; file <= tileBox.right; file += stepBig) {
-			let worldX = space.convertCoordToWorldSpace(bdcoords.FromCoords([file, 0n]))[0];
-			if (isBlackPerspective) worldX = -worldX; // Invert world coords
+		/** Renders a label at the screen position of the given world position, along the bottom or left edge. */
+		const renderLabelAt = (text: string, world: DoubleCoords, alongBottom: boolean): void => {
+			const [screenX, screenY] = perspective.rotateWorldToScreen(world);
 			// prettier-ignore
-			renderLabel(formatCoord(file), [worldX, fileWorldY], sizeWorld, 'center', arrowHalfWidth, effectiveArrowLocations);
+			if (alongBottom) renderLabel(text, [screenX, fileWorldY], sizeWorld, 'center', arrowHalfWidth, effectiveArrowLocations);
+			else renderLabel(text, [rankWorldX, screenY], sizeWorld, 'left', arrowHalfWidth, effectiveArrowLocations); // prettier-ignore
+		};
+		for (let file = firstFile; file <= tileBox.right; file += stepBig) {
+			const worldX = space.convertCoordToWorldSpace(bdcoords.FromCoords([file, 0n]))[0];
+			renderLabelAt(formatCoord(file), [worldX, 0], filesAlongBottom);
 		}
 		for (let rank = firstRank; rank <= tileBox.top; rank += stepBig) {
-			let worldY = space.convertCoordToWorldSpace(bdcoords.FromCoords([0n, rank]))[1];
-			if (isBlackPerspective) worldY = -worldY; // Invert world coords
-			// prettier-ignore
-			renderLabel(formatCoord(rank), [rankWorldX, worldY], sizeWorld, 'left', arrowHalfWidth, effectiveArrowLocations);
+			const worldY = space.convertCoordToWorldSpace(bdcoords.FromCoords([0n, rank]))[1];
+			renderLabelAt(formatCoord(rank), [0, worldY], !filesAlongBottom);
 		}
 	});
 }

@@ -114,18 +114,13 @@ function convertMousePositionToWorldSpace(
 	const screenHeight = screenBox.top - screenBox.bottom;
 	const clientWidth = element instanceof HTMLElement ? element.clientWidth : window.innerWidth;
 	const clientHeight = element instanceof HTMLElement ? element.clientHeight : window.innerHeight;
-	// The world space coordinates are sensitive to whether we're viewing white's or black's perspective.
-	// prettier-ignore
-	const mouseWorldSpace: DoubleCoords = perspective.getIsViewingBlackPerspective() ? [
-		screenBox.right - (mouseCopy[0] / clientWidth) * screenWidth,
-		// [0,0] is the top LEFT corner of the screen, according to mouse coordinates.
-		screenBox.bottom + (mouseCopy[1] / clientHeight) * screenHeight,
-	] : [
+	const mouseScreenSpace: DoubleCoords = [
 		screenBox.left + (mouseCopy[0] / clientWidth) * screenWidth,
 		// [0,0] is the top LEFT corner of the screen, according to mouse coordinates.
 		screenBox.top - (mouseCopy[1] / clientHeight) * screenHeight,
 	];
-	return mouseWorldSpace;
+	// The world space coordinates are sensitive to which player's perspective we're viewing.
+	return perspective.rotateScreenToWorld(mouseScreenSpace);
 }
 
 function getTileMouseOver_Float(button: MouseButton = Mouse.LEFT): BDCoords | undefined {

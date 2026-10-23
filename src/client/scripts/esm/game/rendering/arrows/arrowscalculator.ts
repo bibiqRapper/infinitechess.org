@@ -204,22 +204,28 @@ function updateBoundingBoxesOfVisibleScreen(): void {
 	// Apply the padding of the navigation and gameinfo bars to the screen bounding box.
 	if (!perspective.getEnabled()) {
 		// Perspective is OFF
-		let headerPad = space.convertPixelsToWorldSpace_Virtual(guinavigation.getHeightOfNavBar());
-		let footerPad = space.convertPixelsToWorldSpace_Virtual(
-			guigameinfo.getHeightOfGameInfoBar(),
+		const headerPad = space.convertWorldSpaceToGrid(
+			space.convertPixelsToWorldSpace_Virtual(guinavigation.getHeightOfNavBar()),
 		);
-		// Reverse header and footer pads if we're viewing black's side
-		if (!gameslot.isLoadedGameViewingWhitePerspective())
-			[headerPad, footerPad] = [footerPad, headerPad]; // Swap values
-		// Apply the paddings to the bounding box
-		boundingBoxFloat.top = bd.subtract(
-			boundingBoxFloat.top,
-			space.convertWorldSpaceToGrid(headerPad),
+		const footerPad = space.convertWorldSpaceToGrid(
+			space.convertPixelsToWorldSpace_Virtual(guigameinfo.getHeightOfGameInfoBar()),
 		);
-		boundingBoxFloat.bottom = bd.add(
-			boundingBoxFloat.bottom,
-			space.convertWorldSpaceToGrid(footerPad),
-		);
+		// Apply the paddings to whichever edges of the bounding box are at the top and bottom of the screen
+		const [upX, upY] = perspective.rotateScreenToWorld([0, 1]);
+		const box = boundingBoxFloat;
+		if (upY > 0) {
+			box.top = bd.subtract(box.top, headerPad);
+			box.bottom = bd.add(box.bottom, footerPad);
+		} else if (upY < 0) {
+			box.bottom = bd.add(box.bottom, headerPad);
+			box.top = bd.subtract(box.top, footerPad);
+		} else if (upX > 0) {
+			box.right = bd.subtract(box.right, headerPad);
+			box.left = bd.add(box.left, footerPad);
+		} else {
+			box.left = bd.add(box.left, headerPad);
+			box.right = bd.subtract(box.right, footerPad);
+		}
 	}
 
 	// If any part of the square is on screen, this box rounds outward to contain it.

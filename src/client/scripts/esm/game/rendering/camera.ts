@@ -142,7 +142,23 @@ function getScreenBoundingBox(debugMode: boolean = DEBUG, pad: boolean = false):
  */
 function getRespectiveScreenBox(): DoubleBoundingBox {
 	if (perspective.getEnabled()) return getPerspectiveScreenBox();
-	else return getScreenBoundingBox(false, true);
+	else return rotateScreenBoxToWorld(getScreenBoundingBox(false, true));
+}
+
+/**
+ * Converts a screen bounding box, centered on the origin, into the world-space box it covers in 2D mode.
+ * Swaps its axes when the view is rotated a quarter turn.
+ */
+function rotateScreenBoxToWorld(box: DoubleBoundingBox): DoubleBoundingBox {
+	if (perspective.getEnabled()) return box;
+	const [x1, y1] = perspective.rotateScreenToWorld([box.left, box.bottom]);
+	const [x2, y2] = perspective.rotateScreenToWorld([box.right, box.top]);
+	return {
+		left: Math.min(x1, x2),
+		right: Math.max(x1, x2),
+		bottom: Math.min(y1, y2),
+		top: Math.max(y1, y2),
+	};
 }
 
 /** Returns the world bounding box of the visible range when in perspective mode. */
@@ -360,6 +376,7 @@ export default {
 	getDebug,
 	getScreenBoundingBox,
 	getRespectiveScreenBox,
+	rotateScreenBoxToWorld,
 	getPerspectiveScreenBox,
 	getScreenHeightWorld,
 	getViewMatrix,

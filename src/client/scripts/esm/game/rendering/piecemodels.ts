@@ -55,8 +55,8 @@ interface Mesh {
 	 * This helps require less severe uniform translations upon rendering when traveling massive distances.
 	 * The amount it is shifted depends on the nearest `REGEN_RANGE`. */
 	offset: Coords;
-	/** Whether the position data of each piece mesh is inverted. This will be true if we're viewing black's perspective. */
-	inverted: boolean;
+	/** How many 90° turns the position data of each piece mesh is rotated, matching the view rotation. */
+	quarterTurns: number;
 	/** An object containing the mesh data for each type of piece in the game. One for every type in `pieces` */
 	types: TypeGroup<MeshData>;
 }
@@ -111,8 +111,8 @@ function regenAll(boardsim: Board, mesh: Mesh | undefined): void {
 
 	// Update the offset
 	mesh.offset = geometry.roundPointToNearestGridpoint(boardpos.getBoardPos(), REGEN_RANGE);
-	// Calculate whether the textures should be inverted or not, based on whether we're viewing black's perspective.
-	mesh.inverted = perspective.getIsViewingBlackPerspective();
+	// Rotate the textures upright according to the view rotation.
+	mesh.quarterTurns = perspective.getViewQuarterTurns();
 
 	// For each piece type in the game, generate its mesh
 	for (const type of boardsim.existingTypes) {
@@ -156,7 +156,7 @@ function regenType(boardsim: Board, mesh: Mesh, type: number): void {
  * @param type - The type of piece of which to generate the model for (e.g. "pawnsW")
  */
 function genTypeModel(boardsim: Board, mesh: Mesh, type: number): MeshData {
-	const vertexData = instancedshapes.getDataTexture(mesh.inverted);
+	const vertexData = instancedshapes.getDataTexture(mesh.quarterTurns);
 	const instanceData: InstanceData = getInstanceDataForTypeRange(boardsim, mesh, type);
 
 	const texture = texturecache.getTexture(type);
@@ -339,11 +339,11 @@ function shiftModel(meshData: MeshData, diffXOffset: bigint, diffYOffset: bigint
  *
  * FAST, as this only needs to modify the vertex data of a single instance per piece type.
  */
-function rotateAll(mesh: Mesh, newInverted: boolean): void {
+function rotateAll(mesh: Mesh, newQuarterTurns: number): void {
 	// console.log("Rotating position data of all type meshes!");
 
-	mesh.inverted = newInverted;
-	const newVertexData = instancedshapes.getDataTexture(mesh.inverted);
+	mesh.quarterTurns = newQuarterTurns;
+	const newVertexData = instancedshapes.getDataTexture(mesh.quarterTurns);
 
 	for (const [stringType, meshData] of Object.entries(mesh.types)) {
 		const rawType = typeutil.getRawType(Number(stringType));
@@ -432,8 +432,8 @@ function renderAll(boardsim: Board, mesh: Mesh | undefined): void {
 		shiftAll(boardsim, mesh);
 
 	// Test if the rotation has changed
-	const correctInverted = perspective.getIsViewingBlackPerspective();
-	if (mesh.inverted !== correctInverted) rotateAll(mesh, correctInverted);
+	const correctQuarterTurns = perspective.getViewQuarterTurns();
+	if (mesh.quarterTurns !== correctQuarterTurns) rotateAll(mesh, correctQuarterTurns);
 
 	for (const [typeStr, meshData] of Object.entries(mesh.types)) {
 		const type = Number(typeStr);

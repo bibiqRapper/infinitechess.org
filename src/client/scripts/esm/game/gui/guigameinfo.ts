@@ -5,8 +5,9 @@
  * displaying the clocks, and whos turn it currently is.
  */
 
-import type { PlayerGroup } from '../../../../../shared/chess/util/typeutil.js';
+import type { Game } from '../../../../../shared/chess/logic/gamefile.js';
 import type { GameConclusion } from '../../../../../shared/chess/util/winconutil.js';
+import type { Player, PlayerGroup } from '../../../../../shared/chess/util/typeutil.js';
 import type { MetaData, PlayerRatingChangeInfo, Rating } from '../../../../../shared/types.js';
 import type { RatingItem, UsernameContainer, UsernameItem } from '../../util/usernamecontainer.js';
 
@@ -15,6 +16,7 @@ import gamefileutility from '../../../../../shared/chess/util/gamefileutility.js
 import { players as p } from '../../../../../shared/chess/util/typeutil.js';
 
 import gameslot from '../chess/gameslot.js';
+import guiclock from './guiclock.js';
 import onlinegame from '../misc/onlinegame/onlinegame.js';
 import gameloader from '../chess/gameloader.js';
 import enginegame from '../misc/enginegame.js';
@@ -46,9 +48,12 @@ let isOpen = false;
 /** Whether to show the practice mode game control buttons - undo move and restart. */
 let showButtons = false;
 
-// Username container objects and their respective display options:
+// Username container objects and their respective display options.
+// In games with more than 2 players, these are the left and right slots of the bar instead, see getBarPlayers().
 let usernamecontainer_white: UsernameContainer | undefined;
 let usernamecontainer_black: UsernameContainer | undefined;
+/** The players currently displayed in the left and right slots of the bar. */
+let barPlayers: [Player, Player] | undefined;
 
 // Functions
 
@@ -82,7 +87,12 @@ function open(metadata: MetaData, showGameControlButtons?: boolean): void {
 function embedUsernameContainers(gameMetadata: MetaData): void {
 	// console.log("Embedding username containers");
 
-	const { white, black, white_type, black_type } = getPlayerNamesForGame(gameMetadata);
+	barPlayers = getBarPlayers();
+	guiclock.setBarPlayers(barPlayers);
+	const [leftPlayer, rightPlayer] = barPlayers;
+	const { white, black, white_type, black_type } = isMultiplayerGame()
+		? getPlayerNamesForMultiplayerGame(leftPlayer, rightPlayer)
+		: getPlayerNamesForGame(gameMetadata);
 
 	const playerRatings: PlayerGroup<Rating> | undefined = onlinegame.areInOnlineGame()
 		? onlinegame.getPlayerRatings()
@@ -90,13 +100,14 @@ function embedUsernameContainers(gameMetadata: MetaData): void {
 
 	// Set white username container
 	const username_item_white: UsernameItem = { value: white, openInNewWindow: true };
-	const change_white = gameMetadata.WhiteRatingDiff
-		? Number(gameMetadata.WhiteRatingDiff)
-		: undefined;
-	const rating_item_white: RatingItem | undefined = playerRatings?.[p.WHITE]
+	const change_white =
+		leftPlayer === p.WHITE && gameMetadata.WhiteRatingDiff
+			? Number(gameMetadata.WhiteRatingDiff)
+			: undefined;
+	const rating_item_white: RatingItem | undefined = playerRatings?.[leftPlayer]
 		? {
-				value: playerRatings[p.WHITE]!.value + (change_white ?? 0),
-				confident: playerRatings[p.WHITE]!.confident,
+				value: playerRatings[leftPlayer]!.value + (change_white ?? 0),
+				confident: playerRatings[leftPlayer]!.confident,
 				change: change_white,
 			}
 		: undefined;
@@ -112,13 +123,14 @@ function embedUsernameContainers(gameMetadata: MetaData): void {
 
 	// Set black username container
 	const username_item_black: UsernameItem = { value: black, openInNewWindow: true };
-	const change_black = gameMetadata.BlackRatingDiff
-		? Number(gameMetadata.BlackRatingDiff)
-		: undefined;
-	const rating_item_black: RatingItem | undefined = playerRatings?.[p.BLACK]
+	const change_black =
+		rightPlayer === p.BLACK && gameMetadata.BlackRatingDiff
+			? Number(gameMetadata.BlackRatingDiff)
+			: undefined;
+	const rating_item_black: RatingItem | undefined = playerRatings?.[rightPlayer]
 		? {
-				value: playerRatings[p.BLACK]!.value + (change_black ?? 0),
-				confident: playerRatings[p.BLACK]!.confident,
+				value: playerRatings[rightPlayer]!.value + (change_black ?? 0),
+				confident: playerRatings[rightPlayer]!.confident,
 				change: change_black,
 			}
 		: undefined;
@@ -169,6 +181,80 @@ function clearUsernameContainers(): void {
 	usernamecontainer_black?.animationCancels.forEach((fn) => fn());
 	usernamecontainer_black?.element.remove();
 	usernamecontainer_black = undefined;
+
+	barPlayers = undefined;
+	guiclock.setBarPlayers([p.WHITE, p.BLACK]);
+}
+
+/** Whether the loaded game has more than 2 players, such as 4 Player. */
+function isMultiplayerGame(basegame: Game | undefined = gameslot.getGamefile()?.basegame): boolean {
+	if (!basegame) return false;
+	return new Set(basegame.gameRules.turnOrder).size > 2;
+}
+
+/**
+ * Returns the players to display in the left and right slots of the bar.
+ * In 2 player games, that's always white and black.
+ * With more players, the left slot is us (or whoever's turn it is, if we aren't playing),
+ * and the right slot is whoever's turn it is, or the next player to move if it's our turn.
+ */
+function getBarPlayers(): [Player, Player] {
+	const basegame = gameslot.getGamefile()?.basegame;
+	if (!basegame || !isMultiplayerGame(basegame)) return [p.WHITE, p.BLACK];
+
+	const ourColor =
+		onlinegame.areInOnlineGame() && onlinegame.doWeHaveRole()
+			? onlinegame.getOurColor()
+			: undefined;
+	const left = ourColor ?? basegame.whosTurn;
+	if (basegame.whosTurn !== left) return [left, basegame.whosTurn];
+
+	const order = [...new Set(basegame.gameRules.turnOrder)];
+	const remaining = gamefileutility.getRemainingPlayers(basegame);
+	const start = order.indexOf(left);
+	for (let i = 1; i < order.length; i++) {
+		const candidate = order[(start + i) % order.length]!;
+		if (remaining.includes(candidate)) return [left, candidate];
+	}
+	return [left, order.find((player) => player !== left)!];
+}
+
+/** Returns the display name of a player in a game with more than 2 players. */
+function getMultiplayerPlayerName(player: Player): {
+	name: string;
+	type: 'player' | 'guest';
+} {
+	// prettier-ignore
+	const genericName = player === p.WHITE ? translations.player_name_white_generic
+					  : player === p.BLACK ? translations.player_name_black_generic
+					  : player === p.RED ? translations.player_name_red_generic
+					  : translations.player_name_blue_generic;
+	const username = onlinegame.areInOnlineGame()
+		? onlinegame.getPlayerUsernames()?.[player]
+		: undefined;
+	if (username === undefined) return { name: genericName, type: 'guest' };
+	if (username !== metadatautil.GUEST_NAME_ICN_METADATA)
+		return { name: username, type: 'player' };
+	// If you are a guest, then we want your name to be "(You)" instead of "(Guest)"
+	const name = onlinegame.areWeColorInOnlineGame(player)
+		? translations.you_indicator
+		: translations.guest_indicator;
+	return { name, type: 'guest' };
+}
+
+/** Returns the names of the players in the left and right slots of the bar, for games with more than 2 players. */
+function getPlayerNamesForMultiplayerGame(
+	left: Player,
+	right: Player,
+): ReturnType<typeof getPlayerNamesForGame> {
+	const leftName = getMultiplayerPlayerName(left);
+	const rightName = getMultiplayerPlayerName(right);
+	return {
+		white: leftName.name,
+		black: rightName.name,
+		white_type: leftName.type,
+		black_type: rightName.type,
+	};
 }
 
 function initListeners_Gamecontrol(): void {
@@ -314,6 +400,15 @@ function updateWhosTurn(): void {
 	// In the scenario we forward the game to front after the game has adjudicated,
 	// don't modify the game over text saying who won!
 	if (gamefileutility.isGameOver(basegame)) return gameEnd(basegame.gameConclusion);
+
+	// In games with more than 2 players, the right slot of the bar follows whoever's turn it is.
+	if (barPlayers && isMultiplayerGame(basegame)) {
+		const newBarPlayers = getBarPlayers();
+		if (newBarPlayers[0] !== barPlayers[0] || newBarPlayers[1] !== barPlayers[1]) {
+			clearUsernameContainers();
+			embedUsernameContainers(basegame.metadata);
+		}
+	}
 
 	const color = basegame.whosTurn;
 

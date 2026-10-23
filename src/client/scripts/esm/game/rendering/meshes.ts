@@ -146,31 +146,45 @@ function QuadWorld_Color(coords: Coords, color: Color): number[] {
  * [World Space] Generates the vertex data of a colored texture.
  */
 function QuadWorld_ColorTexture(coords: Coords, color: Color): number[] {
-	const { texleft, texbottom, texright, textop } = getPieceTexCoords();
 	const { left, right, bottom, top } = getCoordBoxWorld(coords);
 	const [r, g, b, a] = color;
 
 	// prettier-ignore
-	return primitives.Quad_ColorTexture(left, bottom, right, top, texleft, texbottom, texright, textop, r, g, b, a);
+	return orientTexturedQuads(primitives.Quad_ColorTexture(left, bottom, right, top, 0, 0, 1, 1, r, g, b, a), 8);
 }
 
 /**
- * Returns the texture coordinates for a full-texture piece quad (UV range 0–1),
- * flipped when viewing from black's perspective.
+ * Rotates the vertex positions of each 6-vertex quad in the data, in place, around the quad's
+ * center by the given number of 90° counter-clockwise turns. Position must be the first 2 components of each vertex.
  */
-function getPieceTexCoords(): {
-	texleft: number;
-	texbottom: number;
-	texright: number;
-	textop: number;
-} {
-	const isBlack = perspective.getIsViewingBlackPerspective();
-	return {
-		texleft: isBlack ? 1 : 0,
-		texbottom: isBlack ? 1 : 0,
-		texright: isBlack ? 0 : 1,
-		textop: isBlack ? 0 : 1,
-	};
+function rotateQuadVertices(data: number[], stride: number, turns: number): number[] {
+	if (turns % 4 === 0) return data;
+	const quadLength = stride * 6;
+	for (let q = 0; q < data.length; q += quadLength) {
+		let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity; // prettier-ignore
+		for (let i = q; i < q + quadLength; i += stride) {
+			minX = Math.min(minX, data[i]!);
+			maxX = Math.max(maxX, data[i]!);
+			minY = Math.min(minY, data[i + 1]!);
+			maxY = Math.max(maxY, data[i + 1]!);
+		}
+		const centerX = (minX + maxX) / 2;
+		const centerY = (minY + maxY) / 2;
+		for (let i = q; i < q + quadLength; i += stride) {
+			const [dx, dy] = perspective.rotateByQuarterTurns([data[i]! - centerX, data[i + 1]! - centerY], turns); // prettier-ignore
+			data[i] = centerX + dx;
+			data[i + 1] = centerY + dy;
+		}
+	}
+	return data;
+}
+
+/**
+ * Rotates textured quads (UV range 0–1) so their textures appear upright
+ * from the perspective of the current view rotation.
+ */
+function orientTexturedQuads(data: number[], stride: number): number[] {
+	return rotateQuadVertices(data, stride, -perspective.getViewQuarterTurns());
 }
 
 /**
@@ -258,7 +272,8 @@ export default {
 	QuadModel_Color,
 	QuadWorld_Color,
 	QuadWorld_ColorTexture,
-	getPieceTexCoords,
+	rotateQuadVertices,
+	orientTexturedQuads,
 	RectWorld,
 	// RectWorld_Filled,
 	// Other Generic Rendering Methods

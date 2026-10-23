@@ -1,6 +1,6 @@
 {
   "100": {
-    "note": "Added play.play-menu.Four_Player on line 370. Added red_to_move and blue_to_move on lines 434-435. Added play.javascript.results.red_wins and blue_wins on lines 613-614."
+    "note": "Added play.play-menu.Four_Player on line 370. Added player_name_red_generic and player_name_blue_generic on lines 432-433. Added red_to_move and blue_to_move on lines 436-437. Added play.javascript.results.red_wins and blue_wins on lines 615-616."
   },
   "99": {
     "note": "Renamed selection, selection-drag, selection-premove, selection-animations, selection-lingering_annotations on lines 27-31 to gameplay, gameplay-drag, gameplay-premove, gameplay-animations, gameplay-lingering_annotations. Added gameplay-fast_transitions on line 32."

@@ -22,7 +22,6 @@ import gamefile from '../../../../../shared/chess/logic/gamefile.js';
 import movepiece from '../../../../../shared/chess/logic/movepiece.js';
 import boardutil from '../../../../../shared/chess/util/boardutil.js';
 import gamefileutility from '../../../../../shared/chess/util/gamefileutility.js';
-import { players as p } from '../../../../../shared/chess/util/typeutil.js';
 
 import area from '../rendering/area.js';
 import board from '../rendering/boardtiles.js';
@@ -62,8 +61,8 @@ interface LoadOptions {
 	variant: VariantCode | null;
 	/** The game's start timestamp in milliseconds since epoch. */
 	dateTimestamp: number;
-	/** True if we should be viewing the game from white's perspective, false for black's perspective. */
-	viewWhitePerspective: boolean;
+	/** The player whose perspective we should view the game from. Their army is placed at the bottom of the screen. */
+	perspectivePlayer: Player;
 	/** Whether the coordinate field box should be editable. */
 	allowEditCoords: boolean;
 	/** Preset ray overrides for the variant's rays. */
@@ -109,12 +108,13 @@ function areInGame(): boolean {
 	return loadedGamefile !== undefined;
 }
 
-function isLoadedGameViewingWhitePerspective(): boolean {
+/** Returns the player whose perspective we are viewing the loaded game from. */
+function getPerspectivePlayer(): Player {
 	if (!loadedGamefile)
 		throw Error(
-			"Cannot ask if loaded game is from white's perspective when there isn't a loaded game.",
+			"Cannot get the perspective of the loaded game when there isn't a loaded game.",
 		);
-	return youAreColor === p.WHITE;
+	return youAreColor;
 }
 
 /**
@@ -160,7 +160,7 @@ function loadLogical(loadOptions: LoadOptions): void {
 		loadOptions.additional,
 	);
 
-	youAreColor = loadOptions.viewWhitePerspective ? p.WHITE : p.BLACK;
+	youAreColor = loadOptions.perspectivePlayer;
 
 	const pieceCount = boardutil.getPieceCountOfGame(loadedGamefile.boardsim.pieces);
 	// Disable miniimages if there's too many pieces
@@ -188,7 +188,7 @@ async function loadGraphical(loadOptions: LoadOptions): Promise<void> {
 	// Opening the guinavigation needs to be done in gameslot.ts instead of gameloader.ts so pasting games still opens it
 	guinavigation.open({ allowEditCoords: loadOptions.allowEditCoords }); // Editing your coords allowed in local games
 	guiclock.set(loadedGamefile!.basegame);
-	perspective.resetRotations(loadOptions.viewWhitePerspective);
+	perspective.resetRotations(loadOptions.perspectivePlayer);
 
 	await imagecache.initImagesForGame(loadedGamefile!.boardsim);
 	texturecache.initTexturesForGame(gl, loadedGamefile!.boardsim);
@@ -203,7 +203,7 @@ async function loadGraphical(loadOptions: LoadOptions): Promise<void> {
 	// Initialize the mesh empty
 	mesh = {
 		offset: [0n, 0n],
-		inverted: false,
+		quarterTurns: 0,
 		types: {},
 	};
 
@@ -324,7 +324,7 @@ export default {
 	getGamefile,
 	getMesh,
 	areInGame,
-	isLoadedGameViewingWhitePerspective,
+	getPerspectivePlayer,
 	loadGamefile,
 	unloadGame,
 	startStartingTransition,

@@ -350,6 +350,7 @@ function sendGameInfoToPlayer(
 			rated: servergame.match.rated,
 			publicity: servergame.match.publicity,
 			playerRatings: ratings,
+			playerUsernames: getUsernamesOfGamePlayers(servergame.match.playerData),
 		},
 		metadata: servergame.basegame.metadata,
 		youAreColor: playerColor,
@@ -357,6 +358,20 @@ function sendGameInfoToPlayer(
 	};
 
 	sendSocketMessage(playerSocket, 'game', 'joingame', messageContents, replyto);
+}
+
+/** Returns the display name of each player in the game: their username, or the guest name if they aren't signed in. */
+function getUsernamesOfGamePlayers(
+	players: PlayerGroup<{ identifier: AuthMemberInfo }>,
+): PlayerGroup<string> {
+	const usernames: PlayerGroup<string> = {};
+	for (const [playerStr, data] of Object.entries(players)) {
+		const { identifier } = data!;
+		usernames[Number(playerStr) as Player] = identifier.signedIn
+			? identifier.username
+			: metadatautil.GUEST_NAME_ICN_METADATA;
+	}
+	return usernames;
 }
 
 /**

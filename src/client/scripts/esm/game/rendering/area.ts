@@ -19,6 +19,7 @@ import camera from './camera.js';
 import meshes from './meshes.js';
 import boardpos from './boardpos.js';
 import boardtiles from './boardtiles.js';
+import perspective from './perspective.js';
 import guigameinfo from '../gui/guigameinfo.js';
 import guinavigation from '../gui/guinavigation.js';
 import Transition, { ZoomTransition } from './transitions/Transition.js';
@@ -84,8 +85,13 @@ function applyPaddingToBox(box: BoundingBoxBD): BoundingBoxBD {
 		const paddingVertWorldBD = bd.fromNumber(
 			space.convertPixelsToWorldSpace_Virtual(paddingVertPixels),
 		);
-		const paddingHorz: BigDecimal = bd.divide(paddingHorzWorldBD, scaleBD);
-		const paddingVert: BigDecimal = bd.divide(paddingVertWorldBD, scaleBD);
+		const paddingScreenHorz: BigDecimal = bd.divide(paddingHorzWorldBD, scaleBD);
+		const paddingScreenVert: BigDecimal = bd.divide(paddingVertWorldBD, scaleBD);
+		// When the view is rotated a quarter turn, the screen's vertical axis runs along the board's horizontal axis.
+		const [paddingHorz, paddingVert] =
+			perspective.getViewQuarterTurns() % 2 === 0
+				? [paddingScreenHorz, paddingScreenVert]
+				: [paddingScreenVert, paddingScreenHorz];
 
 		paddedBox = {
 			left: bd.subtract(boxCopy.left, paddingHorz),
@@ -149,14 +155,15 @@ function getBoundingBoxHalfDimensions(boundingBox: BoundingBoxBD): {
 function calcScaleToMatchSides(boundingBox: BoundingBoxBD): BigDecimal {
 	const { xHalfLength, yHalfLength } = getBoundingBoxHalfDimensions(boundingBox);
 
-	const screenBoundingBox = camera.getScreenBoundingBox(false); // Get the screen bounding box without the navigation bars
+	const screenBoundingBox = camera.rotateScreenBoxToWorld(camera.getScreenBoundingBox(false)); // Get the screen bounding box without the navigation bars
 	const screenBoundingBoxBD: BoundingBoxBD =
 		bounds.castDoubleBoundingBoxToBigDecimal(screenBoundingBox);
 
 	// What is the scale required to match the sides?
 	const xScale = bd.divideFloating(screenBoundingBoxBD.right, xHalfLength);
 	const yScale = bd.divideFloating(screenBoundingBoxBD.top, yHalfLength);
-	const screenHeight = screenBoundingBox.top - screenBoundingBox.bottom;
+	const unrotatedScreenBox = camera.getScreenBoundingBox(false);
+	const screenHeight = unrotatedScreenBox.top - unrotatedScreenBox.bottom;
 	// Can afterward cast to BigDecimal since they are small numbers.
 	const capScale = bd.fromNumber(screenHeight / areaMinHeightSquares);
 

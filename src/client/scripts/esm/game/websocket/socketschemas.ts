@@ -70,6 +70,8 @@ const ServerGameInfoSchema = z.strictObject({
 	rated: z.boolean(),
 	publicity: PublicitySchema,
 	playerRatings: typeutil.GenPlayerGroupSchema(RatingSchema),
+	/** The display name of each player, or the guest name for unauthenticated players. */
+	playerUsernames: typeutil.GenPlayerGroupSchema(z.string()).optional(),
 });
 
 /**

@@ -608,8 +608,6 @@ function render(): void {
 function generateGhostImageModel(type: number, coords: DoubleCoords): Renderable {
 	const dataGhost: number[] = [];
 
-	const { texleft, texbottom, texright, textop } = meshes.getPieceTexCoords();
-
 	const entityWorldWidth = getEntityWidthWorld();
 	const halfWidth = entityWorldWidth / 2;
 
@@ -619,7 +617,7 @@ function generateGhostImageModel(type: number, coords: DoubleCoords): Renderable
 	const endY = startY + entityWorldWidth;
 
 	// prettier-ignore
-	const data = primitives.Quad_ColorTexture(startX, startY, endX, endY, texleft, texbottom, texright, textop, 1, 1, 1, GHOST_IMAGE_OPACITY);
+	const data = meshes.orientTexturedQuads(primitives.Quad_ColorTexture(startX, startY, endX, endY, 0, 0, 1, 1, 1, 1, 1, GHOST_IMAGE_OPACITY), 8);
 
 	dataGhost.push(...data);
 

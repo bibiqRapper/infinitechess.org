@@ -150,7 +150,7 @@ async function startLocalGame(options: {
 			metadata,
 			variant: options.variant,
 			dateTimestamp,
-			viewWhitePerspective: true,
+			perspectivePlayer: p.WHITE,
 			allowEditCoords: true,
 		})
 		.then((_result: any) => onFinishedLoading())
@@ -203,7 +203,7 @@ async function startOnlineGame(options: {
 			metadata: options.metadata,
 			variant: resolvedVariant,
 			dateTimestamp: resolvedTimestamp,
-			viewWhitePerspective: options.youAreColor === p.WHITE,
+			perspectivePlayer: options.youAreColor ?? p.BLACK,
 			allowEditCoords: false,
 			additional,
 		})
@@ -283,7 +283,7 @@ async function startEngineGame(options: {
 		metadata,
 		variant: options.variant,
 		dateTimestamp,
-		viewWhitePerspective: options.youAreColor === p.WHITE,
+		perspectivePlayer: options.youAreColor ?? p.BLACK,
 		allowEditCoords: false,
 		additional: {
 			variantOptions: options.variantOptions,
@@ -328,7 +328,7 @@ async function startBoardEditor(): Promise<void> {
 			metadata,
 			variant: variantCode,
 			dateTimestamp,
-			viewWhitePerspective: true,
+			perspectivePlayer: p.WHITE,
 			allowEditCoords: true,
 			/**
 			 * Enable to tell the gamefile to include large amounts of undefined slots for every single piece type in the game.
@@ -373,7 +373,7 @@ async function startCustomLocalGame(options: {
 			metadata,
 			dateTimestamp,
 			variant: null, // Not specified for custom position
-			viewWhitePerspective: true,
+			perspectivePlayer: p.WHITE,
 			allowEditCoords: true,
 		})
 		.then((_result: any) => onFinishedLoading())
@@ -429,7 +429,7 @@ async function startCustomEngineGame(options: {
 		metadata,
 		variant: null, // Not specified for custom position
 		dateTimestamp,
-		viewWhitePerspective: options.youAreColor === p.WHITE,
+		perspectivePlayer: options.youAreColor ?? p.BLACK,
 		allowEditCoords: false,
 		additional: {
 			variantOptions: options.additional.variantOptions,
@@ -490,7 +490,7 @@ async function startBoardEditorFromCustomPosition(
 			metadata,
 			variant: null, // Not specified for custom position
 			dateTimestamp,
-			viewWhitePerspective: true,
+			perspectivePlayer: p.WHITE,
 			allowEditCoords: true,
 			// See comment in startBoardEditor for why "editor: true" is needed
 			additional: { ...options.additional, editor: true },
@@ -524,7 +524,7 @@ async function pasteGame(options: {
 	// Has to be awaited to give the document a chance to repaint.
 	await loadingscreen.open();
 
-	const viewWhitePerspective = gameslot.isLoadedGameViewingWhitePerspective(); // Retain the same perspective as the current loaded game.
+	const perspectivePlayer = gameslot.getPerspectivePlayer(); // Retain the same perspective as the current loaded game.
 
 	gameslot.unloadGame();
 
@@ -533,7 +533,7 @@ async function pasteGame(options: {
 			metadata: options.metadata,
 			variant: options.variant,
 			dateTimestamp: options.dateTimestamp,
-			viewWhitePerspective,
+			perspectivePlayer,
 			allowEditCoords: guinavigation.areCoordsAllowedToBeEdited(),
 			presetAnnotes: options.presetAnnotes,
 			additional: options.additional,

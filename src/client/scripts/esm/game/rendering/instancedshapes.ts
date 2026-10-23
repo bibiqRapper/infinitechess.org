@@ -324,31 +324,21 @@ function getDataBoxOutline(): number[] {
 
 /**
  * Generates the vertex data for a single square draw with a texture, centered on [0,0]
- * @param inverted - Whether to invert the position data. Should be true if we're viewing black's perspective.
+ * @param quarterTurns - How many 90° turns the view is rotated, so the texture can be rotated upright.
  */
-function getDataTexture(inverted: boolean): number[] {
-	let { left, right, bottom, top } = meshes.getCoordBoxModel([0, 0]);
-	if (inverted) {
-		[left, right] = [right, left]; // Swap left and right
-		[bottom, top] = [top, bottom]; // Swap bottom and top
-	}
-	return primitives.Quad_Texture(left, bottom, right, top, 0, 0, 1, 1);
+function getDataTexture(quarterTurns: number): number[] {
+	const { left, right, bottom, top } = meshes.getCoordBoxModel([0, 0]);
+	const data = primitives.Quad_Texture(left, bottom, right, top, 0, 0, 1, 1);
+	return meshes.rotateQuadVertices(data, 4, -quarterTurns);
 }
 
 /**
  * Generates the vertex data for a single square draw with a colored texture, centered on [0,0]
- * @param inverted - Whether to invert the position data. Should be true if we're viewing black's perspective.
+ * @param quarterTurns - How many 90° turns the view is rotated, so the texture can be rotated upright.
  */
-function getDataColoredTexture(color: Color, inverted: boolean): number[] {
-	let left = -0.5;
-	let right = 0.5;
-	let bottom = -0.5;
-	let top = 0.5;
-	if (inverted) {
-		[left, right] = [right, left]; // Swap left and right
-		[bottom, top] = [top, bottom]; // Swap bottom and top
-	}
-	return primitives.Quad_ColorTexture(left, bottom, right, top, 0, 0, 1, 1, ...color);
+function getDataColoredTexture(color: Color, quarterTurns: number): number[] {
+	const data = primitives.Quad_ColorTexture(-0.5, -0.5, 0.5, 0.5, 0, 0, 1, 1, ...color);
+	return meshes.rotateQuadVertices(data, 8, -quarterTurns);
 }
 
 export default {
