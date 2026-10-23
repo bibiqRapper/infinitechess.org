@@ -9,7 +9,6 @@ import type { Player } from './typeutil.js';
 import type { Game, Board, FullGame, Elimination } from '../logic/gamefile.js';
 import type { GameruleWinCondition, GameConclusion } from './winconutil.js';
 
-import typeutil from './typeutil.js';
 import moveutil from './moveutil.js';
 import gamerules from './gamerules.js';
 import winconutil from './winconutil.js';
