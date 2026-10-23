@@ -717,9 +717,9 @@ function isAutoResignDisconnectTimerActiveForColor(match: MatchInfo, color: Play
  * @param servergame - The game
  */
 function sendUpdatedClockToColor(servergame: ServerGame, color: Player): void {
-	if (color !== p.BLACK && color !== p.WHITE) {
+	if (servergame.match.playerData[color] === undefined) {
 		logEventsAndPrint(
-			`Color must be white or black when sending clock to color! Got: ${color}`,
+			`Color must be a player of the game when sending clock to color! Got: ${color}`,
 			'errLog.txt',
 		);
 		return;
